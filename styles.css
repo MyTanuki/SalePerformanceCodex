@@ -85,13 +85,153 @@ h2 {
 }
 
 .meta {
+  position: relative;
   min-width: 260px;
-  padding: 12px 14px;
+  padding: 12px 54px 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
   font-size: 13px;
+}
+
+.settings-button,
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #52616c;
+  cursor: pointer;
+}
+
+.settings-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.icon-button:hover,
+.icon-button:focus-visible {
+  border-color: var(--actual);
+  color: var(--actual);
+  outline: 0;
+}
+
+.settings-button svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(23, 32, 38, 0.38);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.settings-modal {
+  width: min(520px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 28px 80px rgba(23, 32, 38, 0.22);
+  padding: 18px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.modal-head p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.icon-button {
+  flex: 0 0 auto;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.upload-box {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+
+.upload-box span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+input[type="file"] {
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 10px;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 40px;
+  border-radius: 6px;
+  padding: 0 16px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.primary-button {
+  border: 1px solid var(--actual);
+  background: var(--actual);
+  color: #fff;
+}
+
+.secondary-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+}
+
+.upload-status {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.upload-status.success {
+  color: var(--good);
+}
+
+.upload-status.error {
+  color: var(--danger);
 }
 
 .toolbar,

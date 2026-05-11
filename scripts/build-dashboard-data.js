@@ -292,6 +292,7 @@ function mapResponsible(responsible) {
 
 const factsMap = new Map();
 const openDeals = [];
+const dealDetails = [];
 const unmappedResponsibles = new Map();
 const quality = {
   dealRows: dealRows.length,
@@ -351,6 +352,38 @@ for (const row of dealRows) {
     quality.preLostAsLost.count += 1;
     quality.preLostAsLost.amount += amount;
   }
+
+  const detail = {
+    id: cleanText(row.ID),
+    saleKey,
+    saleName: sale.name,
+    group: sale.group,
+    responsible,
+    category,
+    status,
+    stage: rawStage,
+    pipeline: cleanText(row.Pipeline),
+    product: cleanText(row["Product Type"]) || "(blank)",
+    company: cleanText(row.Company),
+    contact: cleanText(row.Contact),
+    dealName: cleanText(row["Deal Name"]),
+    amount: roundMoney(amount),
+    forecastAmount: roundMoney(status === "open" ? amount * stageWeight(rawStage) : 0),
+    expectedDate: expected?.date || "",
+    expectedMonth: expected?.monthKey || "",
+    stageChangeDate: stageChanged?.date || "",
+    stageMonth: stageChanged?.monthKey || "",
+    createdDate: created?.date || "",
+    trackingMonth: status === "open" ? expected?.monthKey || "" : closeDate?.monthKey || "",
+    stageAgeDays: stageChanged ? Math.floor((TODAY.ts - stageChanged.ts) / DAY_MS) : null,
+    risk: {
+      overdue: Boolean(expected && expected.ts < TODAY.ts),
+      noExpected: !expected,
+      stale30: Boolean(stageChanged && stageChanged.ts < TODAY.ts - 30 * DAY_MS),
+      notContacted: rawStage === "Not Contacted",
+    },
+  };
+  dealDetails.push(detail);
 
   if (status === "won" || status === "lost") {
     const monthKey = closeDate?.monthKey || null;
@@ -470,6 +503,7 @@ const data = {
   sales,
   facts,
   openDeals,
+  dealDetails,
   quality: {
     ...quality,
     zeroTargetSales: {

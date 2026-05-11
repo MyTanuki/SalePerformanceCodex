@@ -19,6 +19,29 @@
         <div class="meta" id="metaBox"></div>
       </header>
 
+      <div class="modal-backdrop" id="settingsModal" hidden>
+        <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+          <div class="modal-head">
+            <div>
+              <h2 id="settingsTitle">Setting</h2>
+              <p>Upload Deal CSV ใหม่ในรูปแบบเดียวกับไฟล์ตั้งต้น</p>
+            </div>
+            <button type="button" class="icon-button" id="closeSettings" aria-label="Close settings">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <label class="upload-box" for="dealCsvInput">
+            <span>Deal CSV File</span>
+            <input id="dealCsvInput" type="file" accept=".csv,text/csv" />
+          </label>
+          <div class="upload-actions">
+            <button type="button" class="primary-button" id="applyDealCsv">Upload File</button>
+            <button type="button" class="secondary-button" id="clearDealCsv">Reset Data</button>
+          </div>
+          <p class="upload-status" id="uploadStatus">ยังไม่ได้เลือกไฟล์</p>
+        </section>
+      </div>
+
       <section class="toolbar" aria-label="Dashboard filters">
         <label>
           มุมมอง
@@ -60,6 +83,7 @@
       <nav class="tabs" aria-label="Dashboard tabs">
         <button type="button" class="active" data-tab="overview">Overview</button>
         <button type="button" data-tab="sales">Sales Performance</button>
+        <button type="button" data-tab="deals">Deal Detail</button>
         <button type="button" data-tab="pipeline">Pipeline Risk</button>
         <button type="button" data-tab="data">Data Quality</button>
       </nav>
@@ -130,6 +154,18 @@
             </div>
           </div>
           <div id="salesTable" class="table-wrap"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-deals">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Deal Detail by Month</h2>
+              <p>ติดตามสถานะและความคืบหน้าราย Deal ตามเดือนที่เลือก</p>
+            </div>
+          </div>
+          <div id="dealDetailTable" class="table-wrap"></div>
         </article>
       </section>
 
