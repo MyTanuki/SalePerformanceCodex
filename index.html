@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sale Performance Dashboard 2026</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Sales Control Tower</p>
+          <h1>Sale Performance Dashboard 2026</h1>
+          <p class="subtitle">
+            ติดตาม Target, Actual, Forecast และ Pipeline Risk
+          </p>
+        </div>
+        <div class="meta" id="metaBox"></div>
+      </header>
+
+      <section class="toolbar" aria-label="Dashboard filters">
+        <label>
+          มุมมอง
+          <select id="periodMode">
+            <option value="ytd">YTD ถึงเดือนที่เลือก</option>
+            <option value="month">เฉพาะเดือน</option>
+            <option value="year">ทั้งปี 2026</option>
+          </select>
+        </label>
+        <label>
+          เดือน
+          <select id="monthSelect"></select>
+        </label>
+        <label>
+          ทีม
+          <select id="groupSelect"></select>
+        </label>
+        <label>
+          Sale
+          <select id="saleSelect"></select>
+        </label>
+        <label class="search-field">
+          ค้นหา
+          <input id="searchInput" type="search" placeholder="ชื่อ Sale, บริษัท, ดีล" />
+        </label>
+        <div class="segment" aria-label="Target category">
+          <button type="button" class="active" data-category="all">รวม</button>
+          <button type="button" data-category="new">New</button>
+          <button type="button" data-category="renew">Renew</button>
+        </div>
+        <label class="check">
+          <input id="showUnmapped" type="checkbox" />
+          รวม No Target
+        </label>
+      </section>
+
+      <section class="kpi-grid" id="kpiGrid" aria-label="KPI summary"></section>
+
+      <nav class="tabs" aria-label="Dashboard tabs">
+        <button type="button" class="active" data-tab="overview">Overview</button>
+        <button type="button" data-tab="sales">Sales Performance</button>
+        <button type="button" data-tab="pipeline">Pipeline Risk</button>
+        <button type="button" data-tab="data">Data Quality</button>
+      </nav>
+
+      <section class="tab-panel active" id="tab-overview">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Target vs Actual by Month</h2>
+                <p>Actual = Deal won + Pre-WON ตามเดือนที่เปลี่ยน stage</p>
+              </div>
+              <span class="legend"><i class="target"></i>Target <i class="actual"></i>Actual <i class="forecast"></i>Forecast</span>
+            </div>
+            <div id="monthlyChart" class="month-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Team Achievement</h2>
+                <p>เรียงตาม % Achievement ของ target ในช่วงที่เลือก</p>
+              </div>
+            </div>
+            <div id="teamChart" class="rank-list"></div>
+          </article>
+        </div>
+
+        <div class="grid two-col compact-row">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>New / Renew Mix</h2>
+                <p>ใช้เทียบโครงสร้างเป้ากับยอดสำเร็จจริง</p>
+              </div>
+            </div>
+            <div id="categoryMix" class="mix-grid"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Status Mix</h2>
+                <p>Won, Lost และ Open pipeline ในช่วงที่เลือก</p>
+              </div>
+            </div>
+            <div id="statusMix" class="status-mix"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Top Open Opportunities</h2>
+              <p>ดีลเปิดที่อยู่ในช่วง forecast และมีมูลค่าสูงสุด</p>
+            </div>
+          </div>
+          <div id="topDealsTable" class="table-wrap"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-sales">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Sale Performance Table</h2>
+              <p>สำหรับประชุม Weekly Review เพื่อดู Gap, Coverage และ Action ที่ต้องติดตาม</p>
+            </div>
+          </div>
+          <div id="salesTable" class="table-wrap"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-pipeline">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Risk Summary</h2>
+                <p>ดีลเปิดที่ต้องเคลียร์ข้อมูลหรือเร่ง follow-up</p>
+              </div>
+            </div>
+            <div id="riskSummary" class="risk-grid"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Risk by Stage</h2>
+                <p>ช่วยแยกว่าปัญหาอยู่ที่ stage ไหน</p>
+              </div>
+            </div>
+            <div id="riskByStage" class="rank-list"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Pipeline Risk Detail</h2>
+              <p>เรียงจากดีลเสี่ยงและมูลค่าสูงก่อน</p>
+            </div>
+          </div>
+          <div id="riskDealsTable" class="table-wrap"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-data">
+        <div class="grid two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Data Assumptions</h2>
+                <p>กติกาที่ใช้ประกอบ target และ deal</p>
+              </div>
+            </div>
+            <div id="assumptionList" class="note-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Stage Normalization</h2>
+                <p>จำนวนและมูลค่าที่ถูกจัดกลุ่มตามสมมติฐาน</p>
+              </div>
+            </div>
+            <div id="normalizationStats" class="risk-grid"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Unmapped Responsible Names</h2>
+              <p>มี actual หรือ pipeline แต่ไม่พบชื่อในไฟล์ Sale Target</p>
+            </div>
+          </div>
+          <div id="unmappedTable" class="table-wrap"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="./data/dashboard-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
