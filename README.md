@@ -10,6 +10,15 @@ The dashboard is available locally at:
 http://127.0.0.1:4173/
 ```
 
+## Refresh Data In The UI
+
+Use the gear button in the header to upload:
+
+- `Sale Target.csv`
+- `Deal.csv`
+
+Either file can be refreshed independently, or both can be uploaded together before pressing `Refresh Dashboard`.
+
 ## Rebuild Data
 
 Run this when either CSV changes:

@@ -7,9 +7,18 @@ const DEAL_PATH =
 const TARGET_PATH =
   process.argv[3] ||
   "C:\\Users\\noppadol.s\\OneDrive - 1-TO-ALL Co., Ltd\\Project\\1toAll\\Sales Dashboard\\Sales Amount\\Sale Target 2026_r1.5.csv";
+const MAPPING_PATH =
+  process.argv[4] ||
+  (fs.existsSync("C:\\CodexWS-Antigravity\\Data Mapping.csv")
+    ? "C:\\CodexWS-Antigravity\\Data Mapping.csv"
+    : null);
 const OUT_PATH = path.join(ROOT, "data", "dashboard-data.js");
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`);
+const MONTHS = Array.from({ length: 5 * 12 }, (_, index) => {
+  const year = 2024 + Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+});
 const TODAY = dateParts("2026-05-11");
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -84,6 +93,19 @@ function readCsv(filePath) {
 }
 
 function parseCsv(text) {
+  const rows = parseCsvRows(text);
+  if (!rows.length) return [];
+  const headers = rows[0].map((header) => header.trim());
+  return rows.slice(1).map((values) => {
+    const record = {};
+    headers.forEach((header, index) => {
+      record[header] = values[index] ?? "";
+    });
+    return record;
+  });
+}
+
+function parseCsvRows(text) {
   const rows = [];
   let row = [];
   let cell = "";
@@ -124,16 +146,7 @@ function parseCsv(text) {
     row.push(cell.replace(/\r$/, ""));
     rows.push(row);
   }
-
-  if (!rows.length) return [];
-  const headers = rows[0].map((header) => header.trim());
-  return rows.slice(1).map((values) => {
-    const record = {};
-    headers.forEach((header, index) => {
-      record[header] = values[index] ?? "";
-    });
-    return record;
-  });
+  return rows;
 }
 
 function parseMoney(value) {
@@ -168,6 +181,88 @@ function canonicalSaleName(value) {
 
 function makeKey(value) {
   return normalizeName(value).replace(/\s+/g, "-") || "unknown";
+}
+
+function parseMappingCsv(filePath) {
+  const fallback = {
+    pipelineGroupMap: new Map(),
+    stageMap: new Map(),
+    dealTypeMap: new Map(),
+    salesGroupMap: new Map(),
+    counts: { pipelines: 0, stages: 0, dealTypes: 0, sales: 0 },
+  };
+  if (!filePath || !fs.existsSync(filePath)) return fallback;
+
+  const rows = parseCsvRows(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "")).map((row) => row.map(cleanText));
+  const pipelineGroupMap = new Map();
+  const stageMap = new Map();
+  const dealTypeMap = new Map();
+  const salesGroupMap = new Map();
+  let section = "";
+  let pipelineHeaders = [];
+
+  for (const row of rows) {
+    if (!row.some(Boolean)) continue;
+    const first = row[0].toLowerCase();
+    const second = row[1]?.toLowerCase() || "";
+    if (first.includes("sale group") && first.includes("pipeline")) {
+      section = "pipeline";
+      pipelineHeaders = row.slice(1);
+      continue;
+    }
+    if (first === "stage (source)" || (first === "stage" && second === "stage")) {
+      section = "stage";
+      continue;
+    }
+    if (first === "deal type" && second === "deal type") {
+      section = "dealType";
+      continue;
+    }
+    if (first === "sales" && second === "sale group") {
+      section = "sales";
+      continue;
+    }
+
+    if (section === "pipeline") {
+      const group = row[0];
+      if (!group) continue;
+      pipelineHeaders.forEach((pipeline, index) => {
+        if (pipeline && row[index + 1]?.toUpperCase() === "X") pipelineGroupMap.set(normalizeName(pipeline), group);
+      });
+    } else if (section === "stage") {
+      if (row[0] && row[1]) stageMap.set(normalizeName(row[0]), row[1]);
+    } else if (section === "dealType") {
+      if (row[0] && row[1]) dealTypeMap.set(normalizeName(row[0]), row[1]);
+    } else if (section === "sales") {
+      if (row[0] && row[1]) {
+        const displayName = cleanText(row[0]).replace(/\s+/g, " ");
+        salesGroupMap.set(normalizeName(row[0]), { displayName, group: row[1] });
+      }
+    }
+  }
+
+  return {
+    pipelineGroupMap,
+    stageMap,
+    dealTypeMap,
+    salesGroupMap,
+    counts: {
+      pipelines: pipelineGroupMap.size,
+      stages: stageMap.size,
+      dealTypes: dealTypeMap.size,
+      sales: salesGroupMap.size,
+    },
+  };
+}
+
+function serializeMappings(mappings) {
+  return {
+    pipelineGroupMap: Object.fromEntries(mappings.pipelineGroupMap),
+    stageMap: Object.fromEntries(mappings.stageMap),
+    dealTypeMap: Object.fromEntries(mappings.dealTypeMap),
+    salesGroupMap: Object.fromEntries(mappings.salesGroupMap),
+    counts: mappings.counts,
+  };
 }
 
 function parseDate(value) {
@@ -208,8 +303,8 @@ function dateParts(isoDate) {
 function normalizeStage(stage) {
   const raw = cleanText(stage);
   const lower = raw.toLowerCase();
-  if (lower === "deal won" || lower === "pre-won" || lower === "pre-won") return "won";
-  if (lower === "deal lost" || lower === "pre-lost" || lower === "pre-lost") return "lost";
+  if (lower === "won" || lower === "deal won" || lower === "pre-won") return "won";
+  if (lower === "lost" || lower === "deal lost" || lower === "pre-lost") return "lost";
   return "open";
 }
 
@@ -222,6 +317,27 @@ function inferCategory(row) {
 
 function stageWeight(stage) {
   return STAGE_WEIGHTS[cleanText(stage)] ?? 0.1;
+}
+
+function mappedStage(stage, mappings) {
+  const raw = cleanText(stage);
+  return mappings.stageMap.get(normalizeName(raw)) || raw || "Open";
+}
+
+function mappedDealType(dealType, mappings) {
+  const raw = cleanText(dealType);
+  return mappings.dealTypeMap.get(normalizeName(raw)) || raw || "New";
+}
+
+function dealCategory(dealType, row) {
+  const mapped = cleanText(dealType).toLowerCase();
+  if (mapped.includes("renew")) return "renew";
+  if (mapped.includes("new")) return "new";
+  return inferCategory(row);
+}
+
+function stageWeightFor(rawStage, displayStage) {
+  return STAGE_WEIGHTS[displayStage] ?? STAGE_WEIGHTS[rawStage] ?? 0.1;
 }
 
 function addAgg(map, keyParts, amount, extra = {}) {
@@ -238,11 +354,13 @@ function roundMoney(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+const mappings = parseMappingCsv(MAPPING_PATH);
 const targetRowsRaw = readCsv(TARGET_PATH).filter((row) => cleanText(row.sales));
 const dealRows = readCsv(DEAL_PATH);
 
 const targetSales = targetRowsRaw.map((row) => {
   const saleName = canonicalSaleName(row.sales);
+  const mappedSale = mappings.salesGroupMap.get(normalizeName(saleName));
   const key = makeKey(saleName);
   const monthly = {};
   MONTHS.forEach((month) => {
@@ -252,6 +370,25 @@ const targetSales = targetRowsRaw.map((row) => {
     };
     monthly[month].total = monthly[month].renew + monthly[month].new;
   });
+  for (let year = 2024; year <= 2028; year += 1) {
+    const yearMonths = MONTHS.filter((month) => month.startsWith(`${year}-`));
+    const renewMonthly = yearMonths.reduce((sum, month) => sum + monthly[month].renew, 0);
+    const newMonthly = yearMonths.reduce((sum, month) => sum + monthly[month].new, 0);
+    const annualRenew = parseMoney(row[`renew ${year}`]);
+    const annualNew = parseMoney(row[`new ${year}`]);
+    if (!renewMonthly && annualRenew > 0 && yearMonths.length) {
+      yearMonths.forEach((month) => {
+        monthly[month].renew = annualRenew / yearMonths.length;
+        monthly[month].total = monthly[month].renew + monthly[month].new;
+      });
+    }
+    if (!newMonthly && annualNew > 0 && yearMonths.length) {
+      yearMonths.forEach((month) => {
+        monthly[month].new = annualNew / yearMonths.length;
+        monthly[month].total = monthly[month].renew + monthly[month].new;
+      });
+    }
+  }
   const targetRenew = MONTHS.reduce((sum, month) => sum + monthly[month].renew, 0);
   const targetNew = MONTHS.reduce((sum, month) => sum + monthly[month].new, 0);
   const targetAnnual = {
@@ -261,8 +398,8 @@ const targetSales = targetRowsRaw.map((row) => {
   };
   return {
     key,
-    name: saleName,
-    group: cleanText(row["sale group"]) || "No group",
+    name: mappedSale?.displayName || saleName,
+    group: mappedSale?.group || cleanText(row["sale group"]) || "No group",
     hasTarget: true,
     hasPositiveTarget: targetAnnual.total > 0,
     responsibleNames: [],
@@ -277,6 +414,8 @@ const targetNameToKey = new Map(targetSales.map((sale) => [normalizeName(sale.na
 function mapResponsible(responsible) {
   const normalized = normalizeName(responsible);
   if (!normalized) return null;
+  const mappedSale = mappings.salesGroupMap.get(normalized);
+  if (mappedSale) return targetNameToKey.get(normalizeName(mappedSale.displayName)) || makeKey(mappedSale.displayName);
   const alias = RESPONSIBLE_ALIASES[normalized];
   if (alias) return targetNameToKey.get(normalizeName(alias)) || makeKey(alias);
 
@@ -306,6 +445,7 @@ const quality = {
   noExpectedOpen: { count: 0, amount: 0 },
   stale30Open: { count: 0, amount: 0 },
   notContactedOpen: { count: 0, amount: 0 },
+  pipelineGroupMismatch: { count: 0, amount: 0 },
 };
 
 for (const row of dealRows) {
@@ -313,19 +453,24 @@ for (const row of dealRows) {
   const saleKey = mapResponsible(responsible);
   const amount = parseMoney(row.Income);
   const rawStage = cleanText(row.Stage);
-  const status = normalizeStage(rawStage);
-  const category = inferCategory(row);
+  const displayStage = mappedStage(rawStage, mappings);
+  const status = normalizeStage(displayStage);
+  const dealType = mappedDealType(row["Deal Type"], mappings);
+  const category = dealCategory(dealType, row);
   const expected = parseDate(row["Expected close date"]);
   const stageChanged = parseDate(row["Stage change date"]);
   const created = parseDate(row.Created);
   const closeDate = stageChanged || expected || created;
+  const pipeline = cleanText(row.Pipeline);
+  const pipelineGroup = mappings.pipelineGroupMap.get(normalizeName(pipeline)) || "";
 
   if (!saleByKey.has(saleKey)) {
-    const displayName = responsible;
+    const mappedSale = mappings.salesGroupMap.get(normalizeName(responsible));
+    const displayName = mappedSale?.displayName || responsible;
     saleByKey.set(saleKey, {
       key: saleKey,
       name: displayName,
-      group: "Unmapped",
+      group: mappedSale?.group || "Unmapped",
       hasTarget: false,
       hasPositiveTarget: false,
       responsibleNames: [],
@@ -361,36 +506,47 @@ for (const row of dealRows) {
     responsible,
     category,
     status,
-    stage: rawStage,
-    pipeline: cleanText(row.Pipeline),
+    stage: displayStage,
+    matchedStage: displayStage,
+    rawStage,
+    pipeline,
+    pipelineGroup,
+    pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+    dealType,
+    rawDealType: cleanText(row["Deal Type"]),
     product: cleanText(row["Product Type"]) || "(blank)",
     company: cleanText(row.Company),
     contact: cleanText(row.Contact),
     dealName: cleanText(row["Deal Name"]),
     amount: roundMoney(amount),
-    forecastAmount: roundMoney(status === "open" ? amount * stageWeight(rawStage) : 0),
+    forecastAmount: roundMoney(status === "open" ? amount * stageWeightFor(rawStage, displayStage) : 0),
     expectedDate: expected?.date || "",
     expectedMonth: expected?.monthKey || "",
     stageChangeDate: stageChanged?.date || "",
     stageMonth: stageChanged?.monthKey || "",
     createdDate: created?.date || "",
     trackingMonth: status === "open" ? expected?.monthKey || "" : closeDate?.monthKey || "",
+    trackingDate: status === "open" ? expected?.date || "" : closeDate?.date || "",
     stageAgeDays: stageChanged ? Math.floor((TODAY.ts - stageChanged.ts) / DAY_MS) : null,
     risk: {
       overdue: Boolean(expected && expected.ts < TODAY.ts),
       noExpected: !expected,
       stale30: Boolean(stageChanged && stageChanged.ts < TODAY.ts - 30 * DAY_MS),
-      notContacted: rawStage === "Not Contacted",
+      notContacted: displayStage === "Not Contacted" || rawStage === "Not Contacted",
     },
   };
   dealDetails.push(detail);
+  if (pipelineGroup && pipelineGroup !== sale.group) {
+    quality.pipelineGroupMismatch.count += 1;
+    quality.pipelineGroupMismatch.amount += amount;
+  }
 
   if (status === "won" || status === "lost") {
     const monthKey = closeDate?.monthKey || null;
     const qualityBucket = status === "won" ? quality.won : quality.lost;
     qualityBucket.count += 1;
     qualityBucket.amount += amount;
-    if (monthKey?.startsWith("2026-")) {
+    if (MONTHS.includes(monthKey)) {
       addAgg(
         factsMap,
         [saleKey, monthKey, category, status],
@@ -414,8 +570,8 @@ for (const row of dealRows) {
   const noExpected = !expected;
   const overdue = Boolean(expected && expected.ts < TODAY.ts);
   const stale30 = Boolean(stageChanged && stageChanged.ts < TODAY.ts - 30 * DAY_MS);
-  const notContacted = rawStage === "Not Contacted";
-  const weight = stageWeight(rawStage);
+  const notContacted = displayStage === "Not Contacted" || rawStage === "Not Contacted";
+  const weight = stageWeightFor(rawStage, displayStage);
   const stageAgeDays = stageChanged ? Math.floor((TODAY.ts - stageChanged.ts) / DAY_MS) : null;
 
   if (noExpected) {
@@ -442,8 +598,14 @@ for (const row of dealRows) {
     group: sale.group,
     responsible,
     category,
-    stage: rawStage,
-    pipeline: cleanText(row.Pipeline),
+    stage: displayStage,
+    matchedStage: displayStage,
+    rawStage,
+    pipeline,
+    pipelineGroup,
+    pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+    dealType,
+    rawDealType: cleanText(row["Deal Type"]),
     product: cleanText(row["Product Type"]) || "(blank)",
     company: cleanText(row.Company),
     dealName: cleanText(row["Deal Name"]),
@@ -452,6 +614,7 @@ for (const row of dealRows) {
     weight,
     expectedDate: expected?.date || "",
     expectedMonth: expected?.monthKey || "",
+    trackingDate: expected?.date || "",
     stageChangeDate: stageChanged?.date || "",
     stageAgeDays,
     risk: {
@@ -490,16 +653,18 @@ const data = {
     sourceFiles: {
       deals: DEAL_PATH,
       target: TARGET_PATH,
+      mapping: MAPPING_PATH,
     },
     assumptions: [
       "Pre-WON is normalized as Won and counted as achieved sales.",
       "Pre-LOST is normalized as Lost and excluded from open pipeline forecast.",
       "Actual month for Won/Lost uses Stage change date, falling back to Expected close date and Created date.",
-      "Renew category uses Pipeline containing Renew or Deal Type starting with Re-New; everything else is New.",
+      "Stage, Deal Type, Pipeline group, and Sales group are mapped from Data Mapping.csv when available.",
     ],
   },
   months: MONTHS,
   stageWeights: STAGE_WEIGHTS,
+  mappings: serializeMappings(mappings),
   sales,
   facts,
   openDeals,

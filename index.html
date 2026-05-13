@@ -24,58 +24,125 @@
           <div class="modal-head">
             <div>
               <h2 id="settingsTitle">Setting</h2>
-              <p>Upload Deal CSV ใหม่ในรูปแบบเดียวกับไฟล์ตั้งต้น</p>
+              <p>เลือกไฟล์ Sale Target, Deal และ Mapping เพื่อ refresh dashboard รอบใหม่</p>
             </div>
             <button type="button" class="icon-button" id="closeSettings" aria-label="Close settings">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
+          <label class="upload-box" for="targetCsvInput">
+            <span>Sale Target CSV File</span>
+            <input id="targetCsvInput" type="file" accept=".csv,text/csv" />
+          </label>
           <label class="upload-box" for="dealCsvInput">
             <span>Deal CSV File</span>
             <input id="dealCsvInput" type="file" accept=".csv,text/csv" />
           </label>
+          <label class="upload-box" for="mappingCsvInput">
+            <span>Mapping CSV File (Data Mapping หรือ Stage Mapping)</span>
+            <input id="mappingCsvInput" type="file" accept=".csv,text/csv" />
+          </label>
           <div class="upload-actions">
-            <button type="button" class="primary-button" id="applyDealCsv">Upload File</button>
-            <button type="button" class="secondary-button" id="clearDealCsv">Reset Data</button>
+            <button type="button" class="primary-button" id="applyCsvFiles">Refresh Dashboard</button>
+            <button type="button" class="secondary-button" id="clearCsvFiles">Reset Data</button>
           </div>
-          <p class="upload-status" id="uploadStatus">ยังไม่ได้เลือกไฟล์</p>
+          <p class="upload-status" id="uploadStatus">ยังไม่ได้เลือกไฟล์ใหม่</p>
         </section>
       </div>
 
-      <section class="toolbar" aria-label="Dashboard filters">
-        <label>
-          มุมมอง
-          <select id="periodMode">
-            <option value="ytd">YTD ถึงเดือนที่เลือก</option>
-            <option value="month">เฉพาะเดือน</option>
-            <option value="year">ทั้งปี 2026</option>
-          </select>
-        </label>
-        <label>
-          เดือน
-          <select id="monthSelect"></select>
-        </label>
-        <label>
-          ทีม
-          <select id="groupSelect"></select>
-        </label>
-        <label>
-          Sale
-          <select id="saleSelect"></select>
-        </label>
-        <label class="search-field">
-          ค้นหา
-          <input id="searchInput" type="search" placeholder="ชื่อ Sale, บริษัท, ดีล" />
-        </label>
-        <div class="segment" aria-label="Target category">
-          <button type="button" class="active" data-category="all">รวม</button>
-          <button type="button" data-category="new">New</button>
-          <button type="button" data-category="renew">Renew</button>
-        </div>
-        <label class="check">
-          <input id="showUnmapped" type="checkbox" />
-          รวม No Target
-        </label>
+      <div class="modal-backdrop" id="dealModal" hidden>
+        <section class="deal-modal" role="dialog" aria-modal="true" aria-labelledby="dealModalTitle">
+          <div class="modal-head">
+            <div>
+              <p class="eyebrow">Deal Analysis</p>
+              <h2 id="dealModalTitle">Deal Detail</h2>
+              <p id="dealModalSubtitle">ข้อมูลสำหรับวิเคราะห์และติดตามความคืบหน้า</p>
+            </div>
+            <button type="button" class="icon-button" id="closeDealModal" aria-label="Close deal detail">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div id="dealModalContent"></div>
+        </section>
+      </div>
+
+      <section class="toolbar dashboard-filter-shell" aria-label="Dashboard filters">
+        <article class="filter-card">
+          <div class="filter-card-head">
+            <h2>Filter มุมมอง</h2>
+          </div>
+          <div class="filter-grid view-filter-grid">
+            <label>
+              มุมมอง
+              <select id="viewMode">
+                <option value="group">รายกลุ่ม</option>
+                <option value="individual">รายบุคคล</option>
+              </select>
+            </label>
+            <label id="groupFilterContainer">
+              กลุ่ม
+              <select id="groupSelect"></select>
+            </label>
+            <label id="salesFilterContainer">
+              พนักงาน
+              <select id="saleSelect"></select>
+            </label>
+            <label class="search-field">
+              ค้นหา
+              <input id="searchInput" type="search" placeholder="ชื่อ Sale, บริษัท, ดีล" />
+            </label>
+          </div>
+        </article>
+
+        <article class="filter-card">
+          <div class="filter-card-head">
+            <h2>Filter ช่วงเวลา</h2>
+            <label class="check">
+              <input id="showUnmapped" type="checkbox" />
+              รวม No Target
+            </label>
+          </div>
+          <div class="filter-grid period-filter-grid">
+            <label>
+              ช่วงเวลา
+              <select id="periodType">
+                <option value="year">Year</option>
+                <option value="quarter">Quarter</option>
+                <option value="week">Week</option>
+                <option value="range">Range</option>
+              </select>
+            </label>
+            <label id="periodSubYear">
+              เลือกปี
+              <select id="periodYear"></select>
+            </label>
+            <label id="periodSubQuarter" hidden>
+              เลือกไตรมาส
+              <select id="periodQuarter"></select>
+            </label>
+            <label id="periodSubWeek" hidden>
+              เลือก ISO Week
+              <select id="periodWeek"></select>
+            </label>
+            <div class="period-range-row">
+              <div id="periodSubRange" class="range-fields" hidden>
+                <label>
+                  ตั้งแต่เดือน
+                  <select id="startMonth"></select>
+                </label>
+                <label>
+                  ถึงเดือน
+                  <select id="endMonth"></select>
+                </label>
+              </div>
+              <div class="segment compact-segment" aria-label="Target category">
+                <button type="button" class="active" data-category="all">รวม</button>
+                <button type="button" data-category="new">New</button>
+                <button type="button" data-category="renew">Renew</button>
+              </div>
+            </div>
+          </div>
+        </article>
       </section>
 
       <section class="kpi-grid" id="kpiGrid" aria-label="KPI summary"></section>
@@ -147,13 +214,91 @@
 
       <section class="tab-panel" id="tab-sales">
         <article class="panel">
-          <div class="panel-head">
+          <div class="panel-head sales-status-head">
             <div>
-              <h2>Sale Performance Table</h2>
-              <p>สำหรับประชุม Weekly Review เพื่อดู Gap, Coverage และ Action ที่ต้องติดตาม</p>
+              <h2>Sales Performance Charts</h2>
+              <p>เปิด/ปิดสถานะเพื่อควบคุมสิ่งที่แสดงในกราฟ</p>
+            </div>
+            <div class="status-checkboxes" id="salesStatusFilters">
+              <label><input type="checkbox" data-sales-status="won" checked />Won</label>
+              <label><input type="checkbox" data-sales-status="commit" checked />Commit</label>
+              <label><input type="checkbox" data-sales-status="upside" checked />Upside</label>
+              <label><input type="checkbox" data-sales-status="open" checked />Open</label>
+              <label><input type="checkbox" data-sales-status="lost" checked />Lost</label>
             </div>
           </div>
-          <div id="salesTable" class="table-wrap"></div>
+        </article>
+
+        <div class="grid chart-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Renew Sales</h2>
+                <p>เทียบ Target กับสถานะ pipeline ของ Renew</p>
+              </div>
+            </div>
+            <div id="renewSalesChart" class="performance-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>New Sales</h2>
+                <p>เทียบ Target กับสถานะ pipeline ของ New</p>
+              </div>
+            </div>
+            <div id="newSalesChart" class="performance-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Total Sales by Sale</h2>
+                <p>Total = Renew + New</p>
+              </div>
+            </div>
+            <div id="totalSalesChart" class="performance-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Cumulative Monthly Sales</h2>
+                <p>เป้าหมายสะสม เทียบ Won, Commit, Upside, Open และ Lost</p>
+              </div>
+            </div>
+            <div id="cumulativeSalesChart" class="performance-chart cumulative-chart"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Transaction Detail</h2>
+              <p>ค้นหาแบบ AND / NOT, ตรวจยอดรวม และจัดเรียงข้อมูลที่ต้องติดตาม</p>
+            </div>
+          </div>
+          <div class="transaction-search-grid">
+            <div class="transaction-search-block">
+              <strong>ค้นหา AND</strong>
+              <input type="search" data-transaction-and placeholder="คำค้นหาที่ 1" />
+              <input type="search" data-transaction-and placeholder="คำค้นหาที่ 2" />
+              <input type="search" data-transaction-and placeholder="คำค้นหาที่ 3" />
+              <input type="search" data-transaction-and placeholder="คำค้นหาที่ 4" />
+            </div>
+            <div class="transaction-search-block">
+              <strong>ไม่รวม NOT</strong>
+              <input type="search" data-transaction-not placeholder="ไม่รวมคำที่ 1" />
+              <input type="search" data-transaction-not placeholder="ไม่รวมคำที่ 2" />
+              <input type="search" data-transaction-not placeholder="ไม่รวมคำที่ 3" />
+              <input type="search" data-transaction-not placeholder="ไม่รวมคำที่ 4" />
+            </div>
+          </div>
+          <div class="transaction-total">
+            <span>ยอดรวม</span>
+            <strong id="transactionTotalAmount">฿0</strong>
+          </div>
+          <div id="transactionTable" class="table-wrap"></div>
         </article>
       </section>
 
