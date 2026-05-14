@@ -15,7 +15,7 @@ const MAPPING_PATH =
 const OUT_PATH = path.join(ROOT, "data", "dashboard-data.js");
 
 const MONTHS = Array.from({ length: 5 * 12 }, (_, index) => {
-  const year = 2024 + Math.floor(index / 12);
+  const year = 2026 + Math.floor(index / 12);
   const month = (index % 12) + 1;
   return `${year}-${String(month).padStart(2, "0")}`;
 });
@@ -410,7 +410,7 @@ const targetSales = targetRowsRaw.map((row) => {
     };
     monthly[month].total = monthly[month].renew + monthly[month].new;
   });
-  for (let year = 2024; year <= 2028; year += 1) {
+  for (let year = 2026; year <= 2028; year += 1) {
     const yearMonths = MONTHS.filter((month) => month.startsWith(`${year}-`));
     const renewMonthly = yearMonths.reduce((sum, month) => sum + monthly[month].renew, 0);
     const newMonthly = yearMonths.reduce((sum, month) => sum + monthly[month].new, 0);
