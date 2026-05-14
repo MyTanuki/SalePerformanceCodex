@@ -33,20 +33,37 @@
           <label class="upload-box" for="targetCsvInput">
             <span>Sale Target CSV File</span>
             <input id="targetCsvInput" type="file" accept=".csv,text/csv" />
+            <span class="autoload-file-name" id="targetAutoFileName" hidden></span>
           </label>
           <label class="upload-box" for="dealCsvInput">
             <span>Deal CSV File</span>
             <input id="dealCsvInput" type="file" accept=".csv,text/csv" />
           </label>
           <label class="upload-box" for="mappingCsvInput">
-            <span>Mapping CSV File (Data Mapping หรือ Stage Mapping)</span>
+            <span>Mapping CSV File (Data Mapping, Stage Mapping หรือ Pipeline Button Rule)</span>
             <input id="mappingCsvInput" type="file" accept=".csv,text/csv" />
+            <span class="autoload-file-name" id="mappingAutoFileName" hidden></span>
           </label>
           <div class="upload-actions">
             <button type="button" class="primary-button" id="applyCsvFiles">Refresh Dashboard</button>
             <button type="button" class="secondary-button" id="clearCsvFiles">Reset Data</button>
           </div>
           <p class="upload-status" id="uploadStatus">ยังไม่ได้เลือกไฟล์ใหม่</p>
+
+          <section class="pipeline-matching-settings" aria-labelledby="pipelineMatchingTitle">
+            <div class="settings-section-head">
+              <div>
+                <h3 id="pipelineMatchingTitle">Pipeline Matching</h3>
+                <p>เลือก Pipeline ที่ให้นับยอดตาม Sale Group และประเภท New/Renew</p>
+              </div>
+              <div class="upload-actions">
+                <button type="button" class="primary-button" id="savePipelineMatching">Save Matching</button>
+                <button type="button" class="secondary-button" id="clearPipelineMatching">Clear Matching</button>
+              </div>
+            </div>
+            <p class="note" id="pipelineMatchingSummary"></p>
+            <div id="pipelineMatchingMatrix" class="pipeline-matching-matrix"></div>
+          </section>
         </section>
       </div>
 
@@ -145,12 +162,18 @@
         </article>
       </section>
 
+      <section class="empty-data-banner" id="emptyDataBanner" hidden>
+        <strong>ยังไม่มีข้อมูล</strong>
+        <span>กรุณา Upload Sale Target และ Deal CSV เพื่อเริ่มสร้าง Dashboard</span>
+      </section>
+
       <section class="kpi-grid" id="kpiGrid" aria-label="KPI summary"></section>
 
       <nav class="tabs" aria-label="Dashboard tabs">
         <button type="button" class="active" data-tab="overview">Overview</button>
         <button type="button" data-tab="sales">Sales Performance</button>
         <button type="button" data-tab="deals">Deal Detail</button>
+        <button type="button" data-tab="leads">New Deals</button>
         <button type="button" data-tab="pipeline">Pipeline Risk</button>
         <button type="button" data-tab="data">Data Quality</button>
       </nav>
@@ -312,6 +335,54 @@
           </div>
           <div id="dealDetailTable" class="table-wrap"></div>
         </article>
+      </section>
+
+      <section class="tab-panel" id="tab-leads">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>New Lead by ISO Week</h2>
+              <p>ใช้ Created Date เป็น key เพื่อวัดประสิทธิภาพการหา Lead ของ Sale</p>
+            </div>
+          </div>
+          <div class="lead-filter-grid">
+            <label>
+              ตั้งแต่ Week
+              <select id="leadStartWeek"></select>
+            </label>
+            <label>
+              ถึง Week
+              <select id="leadEndWeek"></select>
+            </label>
+            <label>
+              ค้นหา Lead
+              <input id="leadSearchInput" type="search" placeholder="Sale, บริษัท, ดีล, Stage, Pipeline" />
+            </label>
+          </div>
+          <div id="newLeadSummary" class="lead-summary-grid"></div>
+        </article>
+
+        <div class="grid two-col lead-detail-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Weekly Lead Trend</h2>
+                <p>จำนวน Lead และมูลค่า Pipeline ที่สร้างในแต่ละ ISO Week</p>
+              </div>
+            </div>
+            <div id="newLeadWeeklyChart" class="lead-week-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Lead Detail by Week</h2>
+                <p>จัดกลุ่มตาม Created Week เพื่อดู contribution ของ Sale</p>
+              </div>
+            </div>
+            <div id="newLeadTable" class="table-wrap"></div>
+          </article>
+        </div>
       </section>
 
       <section class="tab-panel" id="tab-pipeline">

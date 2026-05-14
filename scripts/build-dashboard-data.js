@@ -186,15 +186,17 @@ function makeKey(value) {
 function parseMappingCsv(filePath) {
   const fallback = {
     pipelineGroupMap: new Map(),
+    pipelineRuleMap: new Map(),
     stageMap: new Map(),
     dealTypeMap: new Map(),
     salesGroupMap: new Map(),
-    counts: { pipelines: 0, stages: 0, dealTypes: 0, sales: 0 },
+    counts: { pipelines: 0, pipelineRules: 0, stages: 0, dealTypes: 0, sales: 0 },
   };
   if (!filePath || !fs.existsSync(filePath)) return fallback;
 
   const rows = parseCsvRows(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "")).map((row) => row.map(cleanText));
   const pipelineGroupMap = new Map();
+  const pipelineRuleMap = new Map();
   const stageMap = new Map();
   const dealTypeMap = new Map();
   const salesGroupMap = new Map();
@@ -205,9 +207,9 @@ function parseMappingCsv(filePath) {
     if (!row.some(Boolean)) continue;
     const first = row[0].toLowerCase();
     const second = row[1]?.toLowerCase() || "";
-    if (first.includes("sale group") && first.includes("pipeline")) {
-      section = "pipeline";
-      pipelineHeaders = row.slice(1);
+    if ((first.includes("sale group") && first.includes("pipeline")) || (first === "sale group" && second === "sale type")) {
+      section = second === "sale type" ? "pipelineRules" : "pipeline";
+      pipelineHeaders = row.slice(second === "sale type" ? 2 : 1);
       continue;
     }
     if (first === "stage (source)" || (first === "stage" && second === "stage")) {
@@ -227,7 +229,16 @@ function parseMappingCsv(filePath) {
       const group = row[0];
       if (!group) continue;
       pipelineHeaders.forEach((pipeline, index) => {
-        if (pipeline && row[index + 1]?.toUpperCase() === "X") pipelineGroupMap.set(normalizeName(pipeline), group);
+        if (pipeline && isMappingSelected(row[index + 1])) pipelineGroupMap.set(normalizeName(pipeline), group);
+      });
+    } else if (section === "pipelineRules") {
+      const group = row[0];
+      const saleType = normalizeSaleType(row[1]);
+      if (!group || !saleType) continue;
+      const key = pipelineRuleKey(group, saleType);
+      if (!pipelineRuleMap.has(key)) pipelineRuleMap.set(key, new Set());
+      pipelineHeaders.forEach((pipeline, index) => {
+        if (pipeline && isMappingSelected(row[index + 2])) pipelineRuleMap.get(key).add(normalizeName(pipeline));
       });
     } else if (section === "stage") {
       if (row[0] && row[1]) stageMap.set(normalizeName(row[0]), row[1]);
@@ -243,11 +254,13 @@ function parseMappingCsv(filePath) {
 
   return {
     pipelineGroupMap,
+    pipelineRuleMap,
     stageMap,
     dealTypeMap,
     salesGroupMap,
     counts: {
       pipelines: pipelineGroupMap.size,
+      pipelineRules: Array.from(pipelineRuleMap.values()).reduce((total, values) => total + values.size, 0),
       stages: stageMap.size,
       dealTypes: dealTypeMap.size,
       sales: salesGroupMap.size,
@@ -258,11 +271,38 @@ function parseMappingCsv(filePath) {
 function serializeMappings(mappings) {
   return {
     pipelineGroupMap: Object.fromEntries(mappings.pipelineGroupMap),
+    pipelineRuleMap: Object.fromEntries(Array.from(mappings.pipelineRuleMap || []).map(([key, values]) => [key, Array.from(values || [])])),
     stageMap: Object.fromEntries(mappings.stageMap),
     dealTypeMap: Object.fromEntries(mappings.dealTypeMap),
     salesGroupMap: Object.fromEntries(mappings.salesGroupMap),
     counts: mappings.counts,
   };
+}
+
+function isMappingSelected(value) {
+  const text = cleanText(value).toLowerCase();
+  return ["x", "button down", "buttondown", "selected", "yes", "true", "1"].includes(text);
+}
+
+function normalizeSaleType(value) {
+  const text = cleanText(value).toLowerCase();
+  if (text === "new") return "new";
+  if (text === "renew" || text === "re-new" || text === "renewal") return "renew";
+  return "";
+}
+
+function pipelineRuleKey(group, saleType) {
+  return `${normalizeName(group)}|${normalizeSaleType(saleType) || cleanText(saleType).toLowerCase()}`;
+}
+
+function pipelineCountingResult(group, category, pipeline, mappings) {
+  const rules = mappings.pipelineRuleMap || new Map();
+  if (!rules.size) return { status: "included", included: true, label: "Included" };
+  const key = pipelineRuleKey(group, category);
+  const allowedPipelines = rules.get(key);
+  if (!allowedPipelines) return { status: "unmapped", included: false, label: "Unmapped rule" };
+  if (allowedPipelines.has(normalizeName(pipeline))) return { status: "included", included: true, label: "Included" };
+  return { status: "excluded", included: false, label: "Excluded pipeline" };
 }
 
 function parseDate(value) {
@@ -446,6 +486,9 @@ const quality = {
   stale30Open: { count: 0, amount: 0 },
   notContactedOpen: { count: 0, amount: 0 },
   pipelineGroupMismatch: { count: 0, amount: 0 },
+  pipelineIncluded: { count: 0, amount: 0 },
+  pipelineExcluded: { count: 0, amount: 0 },
+  pipelineUnmapped: { count: 0, amount: 0 },
 };
 
 for (const row of dealRows) {
@@ -480,6 +523,7 @@ for (const row of dealRows) {
   }
   const sale = saleByKey.get(saleKey);
   if (!sale.responsibleNames.includes(responsible)) sale.responsibleNames.push(responsible);
+  const counting = pipelineCountingResult(sale.group, category, pipeline, mappings);
 
   if (sale.group === "Unmapped") {
     const key = responsible;
@@ -512,6 +556,9 @@ for (const row of dealRows) {
     pipeline,
     pipelineGroup,
     pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+    countingStatus: counting.status,
+    countingIncluded: counting.included,
+    countingLabel: counting.label,
     dealType,
     rawDealType: cleanText(row["Deal Type"]),
     product: cleanText(row["Product Type"]) || "(blank)",
@@ -540,6 +587,16 @@ for (const row of dealRows) {
     quality.pipelineGroupMismatch.count += 1;
     quality.pipelineGroupMismatch.amount += amount;
   }
+  const countingBucket =
+    counting.status === "included"
+      ? quality.pipelineIncluded
+      : counting.status === "excluded"
+        ? quality.pipelineExcluded
+        : quality.pipelineUnmapped;
+  countingBucket.count += 1;
+  countingBucket.amount += amount;
+
+  if (!counting.included) continue;
 
   if (status === "won" || status === "lost") {
     const monthKey = closeDate?.monthKey || null;
@@ -604,6 +661,9 @@ for (const row of dealRows) {
     pipeline,
     pipelineGroup,
     pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+    countingStatus: counting.status,
+    countingIncluded: counting.included,
+    countingLabel: counting.label,
     dealType,
     rawDealType: cleanText(row["Deal Type"]),
     product: cleanText(row["Product Type"]) || "(blank)",

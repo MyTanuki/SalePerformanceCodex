@@ -1,6 +1,7 @@
-const STORED_DATA_KEY = "sale-performance-dashboard-uploaded-deals";
-const initialDashboardData = JSON.parse(JSON.stringify(window.DASHBOARD_DATA));
-let dashboardData = loadStoredDashboardData() || JSON.parse(JSON.stringify(initialDashboardData));
+const STORED_DATA_KEY = "sale-performance-dashboard-workspace-v2";
+const initialDashboardData = JSON.parse(JSON.stringify(window.DASHBOARD_DATA || createEmptyDashboardData()));
+const storedDashboardData = loadStoredDashboardData();
+let dashboardData = storedDashboardData || JSON.parse(JSON.stringify(initialDashboardData));
 
 const state = {
   viewMode: "group",
@@ -12,6 +13,9 @@ const state = {
   periodWeek: "2026-W20",
   startMonth: "2026-01",
   endMonth: "2026-12",
+  leadStartWeek: "2026-W23",
+  leadEndWeek: "2026-W26",
+  leadSearch: "",
   category: "all",
   showUnmapped: false,
   search: "",
@@ -34,6 +38,88 @@ const state = {
 };
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const saleTypes = ["renew", "new"];
+const defaultPipelineOrder = [
+  "2027 Budget Setup (งบปี 70)",
+  "2028 Budget Setup (งบปี 71)",
+  "Auto Renew",
+  "By Chance Project",
+  "Connectivity",
+  "Corporate",
+  "Government Deal Competition",
+  "Government Deal Focus",
+  "Government Deal Steal",
+  "Inside NEW",
+  "Partner",
+  "Special Project",
+  "Subscription Renew",
+  "Work Request Presale BIZ",
+  "Work Request Presale SI",
+];
+
+function createEmptyDashboardData() {
+  const months = Array.from({ length: 5 * 12 }, (_, index) => {
+    const year = 2024 + Math.floor(index / 12);
+    const month = (index % 12) + 1;
+    return `${year}-${String(month).padStart(2, "0")}`;
+  });
+  return {
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      asOfDate: localIsoDate(),
+      sourceFiles: {
+        deals: "",
+        target: "",
+        mapping: "",
+      },
+      assumptions: [
+        "Web starts empty. Upload Sale Target and Deal CSV to build the dashboard.",
+        "Stage Mapping, Sale Target, and Pipeline Matching rules can be auto-loaded from ./data.",
+      ],
+    },
+    months,
+    stageWeights: {
+      Commit: 0.8,
+      Upside: 0.5,
+      Open: 0.1,
+    },
+    mappings: {
+      pipelineGroupMap: {},
+      pipelineRuleMap: {},
+      stageMap: {},
+      dealTypeMap: {},
+      salesGroupMap: {},
+      counts: { pipelines: 0, pipelineRules: 0, stages: 0, dealTypes: 0, sales: 0 },
+    },
+    sales: [],
+    facts: [],
+    openDeals: [],
+    dealDetails: [],
+    quality: emptyQuality(),
+    unmappedResponsibles: [],
+  };
+}
+
+function emptyQuality() {
+  return {
+    dealRows: 0,
+    targetRows: 0,
+    preWonAsWon: { count: 0, amount: 0 },
+    preLostAsLost: { count: 0, amount: 0 },
+    won: { count: 0, amount: 0 },
+    lost: { count: 0, amount: 0 },
+    open: { count: 0, amount: 0 },
+    overdueOpen: { count: 0, amount: 0 },
+    noExpectedOpen: { count: 0, amount: 0 },
+    stale30Open: { count: 0, amount: 0 },
+    notContactedOpen: { count: 0, amount: 0 },
+    pipelineGroupMismatch: { count: 0, amount: 0 },
+    pipelineIncluded: { count: 0, amount: 0 },
+    pipelineExcluded: { count: 0, amount: 0 },
+    pipelineUnmapped: { count: 0, amount: 0 },
+    zeroTargetSales: { count: 0, amount: 0 },
+  };
+}
 
 const els = {
   metaBox: document.querySelector("#metaBox"),
@@ -47,9 +133,16 @@ const els = {
   targetCsvInput: document.querySelector("#targetCsvInput"),
   dealCsvInput: document.querySelector("#dealCsvInput"),
   mappingCsvInput: document.querySelector("#mappingCsvInput"),
+  targetAutoFileName: document.querySelector("#targetAutoFileName"),
+  mappingAutoFileName: document.querySelector("#mappingAutoFileName"),
   applyCsvFiles: document.querySelector("#applyCsvFiles"),
   clearCsvFiles: document.querySelector("#clearCsvFiles"),
   uploadStatus: document.querySelector("#uploadStatus"),
+  emptyDataBanner: document.querySelector("#emptyDataBanner"),
+  savePipelineMatching: document.querySelector("#savePipelineMatching"),
+  clearPipelineMatching: document.querySelector("#clearPipelineMatching"),
+  pipelineMatchingSummary: document.querySelector("#pipelineMatchingSummary"),
+  pipelineMatchingMatrix: document.querySelector("#pipelineMatchingMatrix"),
   viewMode: document.querySelector("#viewMode"),
   groupFilterContainer: document.querySelector("#groupFilterContainer"),
   salesFilterContainer: document.querySelector("#salesFilterContainer"),
@@ -59,6 +152,9 @@ const els = {
   periodWeek: document.querySelector("#periodWeek"),
   startMonth: document.querySelector("#startMonth"),
   endMonth: document.querySelector("#endMonth"),
+  leadStartWeek: document.querySelector("#leadStartWeek"),
+  leadEndWeek: document.querySelector("#leadEndWeek"),
+  leadSearchInput: document.querySelector("#leadSearchInput"),
   periodSubYear: document.querySelector("#periodSubYear"),
   periodSubQuarter: document.querySelector("#periodSubQuarter"),
   periodSubWeek: document.querySelector("#periodSubWeek"),
@@ -74,6 +170,9 @@ const els = {
   statusMix: document.querySelector("#statusMix"),
   topDealsTable: document.querySelector("#topDealsTable"),
   dealDetailTable: document.querySelector("#dealDetailTable"),
+  newLeadSummary: document.querySelector("#newLeadSummary"),
+  newLeadWeeklyChart: document.querySelector("#newLeadWeeklyChart"),
+  newLeadTable: document.querySelector("#newLeadTable"),
   riskSummary: document.querySelector("#riskSummary"),
   riskByStage: document.querySelector("#riskByStage"),
   riskDealsTable: document.querySelector("#riskDealsTable"),
@@ -170,6 +269,10 @@ function storeDashboardData(data) {
   } catch {
     setUploadStatus("Upload สำเร็จ แต่ browser ไม่สามารถบันทึกข้อมูลไว้หลัง refresh ได้", "error");
   }
+}
+
+function hasDealData(data = dashboardData) {
+  return (data?.quality?.dealRows || 0) > 0 || (data?.dealDetails || []).length > 0;
 }
 
 function clone(value) {
@@ -294,10 +397,11 @@ function createDefaultMappings() {
   });
   return {
     pipelineGroupMap: new Map(),
+    pipelineRuleMap: new Map(),
     stageMap,
     dealTypeMap,
     salesGroupMap,
-    counts: { pipelines: 0, stages: stageMap.size, dealTypes: dealTypeMap.size, sales: salesGroupMap.size },
+    counts: { pipelines: 0, pipelineRules: 0, stages: stageMap.size, dealTypes: dealTypeMap.size, sales: salesGroupMap.size },
   };
 }
 
@@ -309,10 +413,11 @@ function hydrateMappings(mappingData) {
   if (!mappingData || mappingData.pipelineGroupMap instanceof Map) return mappingData || DEFAULT_MAPPINGS;
   return {
     pipelineGroupMap: new Map(Object.entries(mappingData.pipelineGroupMap || {})),
+    pipelineRuleMap: new Map(Object.entries(mappingData.pipelineRuleMap || {}).map(([key, values]) => [key, new Set(values || [])])),
     stageMap: new Map(Object.entries(mappingData.stageMap || {})),
     dealTypeMap: new Map(Object.entries(mappingData.dealTypeMap || {})),
     salesGroupMap: new Map(Object.entries(mappingData.salesGroupMap || {})),
-    counts: mappingData.counts || { pipelines: 0, stages: 0, dealTypes: 0, sales: 0 },
+    counts: mappingData.counts || { pipelines: 0, pipelineRules: 0, stages: 0, dealTypes: 0, sales: 0 },
   };
 }
 
@@ -320,6 +425,12 @@ function serializeMappings(mappings) {
   const mapToObject = (map) => Object.fromEntries(map instanceof Map ? map.entries() : Object.entries(map || {}));
   return {
     pipelineGroupMap: mapToObject(mappings.pipelineGroupMap),
+    pipelineRuleMap: Object.fromEntries(
+      Array.from(mappings.pipelineRuleMap instanceof Map ? mappings.pipelineRuleMap.entries() : []).map(([key, values]) => [
+        key,
+        Array.from(values || []),
+      ]),
+    ),
     stageMap: mapToObject(mappings.stageMap),
     dealTypeMap: mapToObject(mappings.dealTypeMap),
     salesGroupMap: mapToObject(mappings.salesGroupMap),
@@ -330,6 +441,7 @@ function serializeMappings(mappings) {
 function mappingCounts(mappings) {
   return {
     pipelines: mappings.pipelineGroupMap?.size || 0,
+    pipelineRules: Array.from(mappings.pipelineRuleMap?.values?.() || []).reduce((total, values) => total + values.size, 0),
     stages: mappings.stageMap?.size || 0,
     dealTypes: mappings.dealTypeMap?.size || 0,
     sales: mappings.salesGroupMap?.size || 0,
@@ -339,11 +451,16 @@ function mappingCounts(mappings) {
 function mergeMappings(baseMappings, updateMappings) {
   const merged = {
     pipelineGroupMap: new Map(baseMappings.pipelineGroupMap),
+    pipelineRuleMap: new Map(Array.from(baseMappings.pipelineRuleMap || []).map(([key, values]) => [key, new Set(values)])),
     stageMap: new Map(baseMappings.stageMap),
     dealTypeMap: new Map(baseMappings.dealTypeMap),
     salesGroupMap: new Map(baseMappings.salesGroupMap),
   };
   updateMappings.pipelineGroupMap.forEach((group, pipeline) => merged.pipelineGroupMap.set(pipeline, group));
+  updateMappings.pipelineRuleMap?.forEach((pipelines, key) => {
+    if (!merged.pipelineRuleMap.has(key)) merged.pipelineRuleMap.set(key, new Set());
+    pipelines.forEach((pipeline) => merged.pipelineRuleMap.get(key).add(pipeline));
+  });
   updateMappings.stageMap.forEach((stage, source) => merged.stageMap.set(source, stage));
   updateMappings.dealTypeMap.forEach((dealType, source) => merged.dealTypeMap.set(source, dealType));
   updateMappings.salesGroupMap.forEach((sale, source) => merged.salesGroupMap.set(source, sale));
@@ -354,6 +471,7 @@ function mergeMappings(baseMappings, updateMappings) {
 function parseMappingCsv(text) {
   const rows = parseCsvRows(text).map((row) => row.map(cleanText));
   const pipelineGroupMap = new Map();
+  const pipelineRuleMap = new Map();
   const stageMap = new Map();
   const dealTypeMap = new Map();
   const salesGroupMap = new Map();
@@ -364,9 +482,9 @@ function parseMappingCsv(text) {
     if (!row.some(Boolean)) continue;
     const first = row[0].toLowerCase();
     const second = row[1]?.toLowerCase() || "";
-    if (first.includes("sale group") && first.includes("pipeline")) {
-      section = "pipeline";
-      pipelineHeaders = row.slice(1);
+    if ((first.includes("sale group") && first.includes("pipeline")) || (first === "sale group" && second === "sale type")) {
+      section = second === "sale type" ? "pipelineRules" : "pipeline";
+      pipelineHeaders = row.slice(second === "sale type" ? 2 : 1);
       continue;
     }
     if (first === "stage (source)" || (first === "stage" && second === "stage")) {
@@ -386,7 +504,16 @@ function parseMappingCsv(text) {
       const group = row[0];
       if (!group) continue;
       pipelineHeaders.forEach((pipeline, index) => {
-        if (pipeline && row[index + 1]?.toUpperCase() === "X") pipelineGroupMap.set(normalizeName(pipeline), group);
+        if (pipeline && isMappingSelected(row[index + 1])) pipelineGroupMap.set(normalizeName(pipeline), group);
+      });
+    } else if (section === "pipelineRules") {
+      const group = row[0];
+      const saleType = normalizeSaleType(row[1]);
+      if (!group || !saleType) continue;
+      const key = pipelineRuleKey(group, saleType);
+      if (!pipelineRuleMap.has(key)) pipelineRuleMap.set(key, new Set());
+      pipelineHeaders.forEach((pipeline, index) => {
+        if (pipeline && isMappingSelected(row[index + 2])) pipelineRuleMap.get(key).add(normalizeName(pipeline));
       });
     } else if (section === "stage") {
       if (row[0] && row[1]) stageMap.set(normalizeName(row[0]), row[1]);
@@ -402,11 +529,13 @@ function parseMappingCsv(text) {
 
   return {
     pipelineGroupMap,
+    pipelineRuleMap,
     stageMap,
     dealTypeMap,
     salesGroupMap,
     counts: {
       pipelines: pipelineGroupMap.size,
+      pipelineRules: Array.from(pipelineRuleMap.values()).reduce((total, values) => total + values.size, 0),
       stages: stageMap.size,
       dealTypes: dealTypeMap.size,
       sales: salesGroupMap.size,
@@ -416,10 +545,36 @@ function parseMappingCsv(text) {
 
 function validateMappings(mappings) {
   const counts = mappingCounts(mappings);
-  const total = counts.pipelines + counts.stages + counts.dealTypes + counts.sales;
+  const total = counts.pipelines + counts.pipelineRules + counts.stages + counts.dealTypes + counts.sales;
   if (!total) {
-    throw new Error("ไฟล์ Mapping CSV ต้องมีอย่างน้อย 1 ตาราง: Pipeline, Stage, Deal Type หรือ Sales");
+    throw new Error("ไฟล์ Mapping CSV ต้องมีอย่างน้อย 1 ตาราง: Pipeline Rule, Pipeline, Stage, Deal Type หรือ Sales");
   }
+}
+
+function isMappingSelected(value) {
+  const text = cleanText(value).toLowerCase();
+  return ["x", "button down", "buttondown", "selected", "yes", "true", "1"].includes(text);
+}
+
+function normalizeSaleType(value) {
+  const text = cleanText(value).toLowerCase();
+  if (text === "new") return "new";
+  if (text === "renew" || text === "re-new" || text === "renewal") return "renew";
+  return "";
+}
+
+function pipelineRuleKey(group, saleType) {
+  return `${normalizeName(group)}|${normalizeSaleType(saleType) || cleanText(saleType).toLowerCase()}`;
+}
+
+function pipelineCountingResult(group, category, pipeline, mappings = activeMappings()) {
+  const rules = mappings.pipelineRuleMap || new Map();
+  if (!rules.size) return { status: "included", included: true, label: "Included" };
+  const key = pipelineRuleKey(group, category);
+  const allowedPipelines = rules.get(key);
+  if (!allowedPipelines) return { status: "unmapped", included: false, label: "Unmapped rule" };
+  if (allowedPipelines.has(normalizeName(pipeline))) return { status: "included", included: true, label: "Included" };
+  return { status: "excluded", included: false, label: "Excluded pipeline" };
 }
 
 function parseDateValue(value) {
@@ -491,6 +646,12 @@ function monthLabel(month) {
   if (isIsoWeekKey(month)) return weekLabel(month);
   const index = Number(month.slice(5, 7)) - 1;
   return `${monthNames[index] || month} ${month.slice(0, 4)}`;
+}
+
+function displayDate(dateText) {
+  const parts = parseDateValue(dateText);
+  if (!parts) return cleanText(dateText) || "-";
+  return parts.date;
 }
 
 function periodMonths() {
@@ -578,7 +739,7 @@ function visibleSales() {
   return dashboardData.sales.filter((sale) => {
     if (!state.showUnmapped && !sale.hasPositiveTarget) return false;
     if (state.group !== "all" && sale.group !== state.group) return false;
-    if (state.viewMode === "individual" && state.sale !== "all" && sale.key !== state.sale) return false;
+    if (state.sale !== "all" && sale.key !== state.sale) return false;
     return true;
   });
 }
@@ -589,6 +750,61 @@ function salesForOptions() {
     if (state.group !== "all" && sale.group !== state.group) return false;
     return true;
   });
+}
+
+function selectedSaleRecord() {
+  if (state.sale === "all") return null;
+  return dashboardData.sales.find((sale) => sale.key === state.sale) || null;
+}
+
+function itemMatchesSaleRecord(item, sale) {
+  if (!sale) return true;
+  if (item.saleKey === sale.key) return true;
+  const saleTerms = [sale.name, ...(sale.responsibleNames || [])].map(normalizeName).filter(Boolean);
+  const itemTerms = [item.saleName, item.responsible].map(normalizeName).filter(Boolean);
+  return itemTerms.some((itemTerm) =>
+    saleTerms.some((saleTerm) => itemTerm === saleTerm || itemTerm.startsWith(`${saleTerm} `) || saleTerm.startsWith(`${itemTerm} `)),
+  );
+}
+
+function itemMatchesSaleScope(item, scope) {
+  return scope.saleSet.has(item.saleKey) || (scope.selectedSale && itemMatchesSaleRecord(item, scope.selectedSale));
+}
+
+function dealSearchText(deal) {
+  return normalizeSearch(
+    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product || ""} ${deal.category || ""} ${performanceBucket(deal)} ${deal.expectedDate || ""} ${deal.stageChangeDate || ""} ${deal.createdDate || ""}`,
+  );
+}
+
+function dealMatchesGlobalSearch(deal, search = state.search) {
+  const q = normalizeSearch(search);
+  if (!q) return true;
+  return dealSearchText(deal).includes(q);
+}
+
+function dealMatchesPeriod(deal, scope, periodKey = null) {
+  if (periodKey) return dealPeriodKey(deal, periodKey) === periodKey;
+  return scope.monthSet.has(dealPeriodKey(deal, scope.months[0]));
+}
+
+function filteredDeals(scope, options = {}) {
+  const {
+    category = "state",
+    period = true,
+    periodKey = null,
+    countingIncluded = true,
+    globalSearch = true,
+    statuses = null,
+  } = options;
+  return allDealDetails()
+    .filter((deal) => itemMatchesSaleScope(deal, scope))
+    .filter((deal) => categoryMatches(deal.category))
+    .filter((deal) => category === "state" || category === "all" || deal.category === category)
+    .filter((deal) => !countingIncluded || deal.countingIncluded !== false)
+    .filter((deal) => !period || dealMatchesPeriod(deal, scope, periodKey))
+    .filter((deal) => !globalSearch || dealMatchesGlobalSearch(deal))
+    .filter((deal) => !statuses || statuses.includes(performanceBucket(deal)));
 }
 
 function targetForSale(sale, months, category = state.category) {
@@ -619,33 +835,27 @@ function targetForSaleWeek(sale, weekKey, category = state.category) {
 function calcScope() {
   const months = periodMonths();
   const monthSet = new Set(months);
-  const isWeek = state.periodType === "week";
   const sales = visibleSales();
   const saleSet = new Set(sales.map((sale) => sale.key));
-  const facts = isWeek
-    ? allDealDetails()
-        .filter((deal) => saleSet.has(deal.saleKey) && categoryMatches(deal.category))
-        .filter((deal) => monthSet.has(dealPeriodKey(deal, state.periodWeek)))
-        .filter((deal) => deal.status === "won" || deal.status === "lost")
-        .map((deal) => ({
-          saleKey: deal.saleKey,
-          monthKey: state.periodWeek,
-          category: deal.category,
-          status: deal.status,
-          group: deal.group,
-          saleName: deal.saleName,
-          amount: deal.amount,
-          count: 1,
-        }))
-    : dashboardData.facts.filter(
-        (fact) => saleSet.has(fact.saleKey) && monthSet.has(fact.monthKey) && categoryMatches(fact.category),
-      );
+  const selectedSale = selectedSaleRecord();
+  const baseScope = { months, monthSet, saleSet, selectedSale };
+  const periodDeals = filteredDeals(baseScope);
+  const facts = periodDeals
+    .filter((deal) => deal.status === "won" || deal.status === "lost")
+    .map((deal) => ({
+      saleKey: deal.saleKey,
+      monthKey: dealPeriodKey(deal, months[0]),
+      category: deal.category,
+      status: deal.status,
+      group: deal.group,
+      saleName: deal.saleName,
+      amount: deal.amount,
+      count: 1,
+    }));
   const actualFacts = facts.filter((fact) => fact.status === "won");
   const lostFacts = facts.filter((fact) => fact.status === "lost");
-  const openAll = dashboardData.openDeals.filter((deal) => saleSet.has(deal.saleKey) && categoryMatches(deal.category));
-  const openPeriod = openAll.filter((deal) =>
-    isWeek ? monthSet.has(dealPeriodKey(deal, state.periodWeek)) : deal.expectedMonth && monthSet.has(deal.expectedMonth),
-  );
+  const openPeriod = periodDeals.filter((deal) => deal.status === "open");
+  const openAll = openPeriod;
 
   const target = sum(sales, (sale) => targetForSale(sale, months));
   const actual = sum(actualFacts, (fact) => fact.amount);
@@ -659,6 +869,8 @@ function calcScope() {
     monthSet,
     sales,
     saleSet,
+    selectedSale,
+    periodDeals,
     facts,
     actualFacts,
     lostFacts,
@@ -699,7 +911,6 @@ function initFilters() {
 
   els.viewMode.addEventListener("change", () => {
     state.viewMode = els.viewMode.value;
-    if (state.viewMode === "group") state.sale = "all";
     renderFilterVisibility();
     renderSaleOptions();
     render();
@@ -736,6 +947,26 @@ function initFilters() {
       els.startMonth.value = state.startMonth;
     }
     render();
+  });
+  els.leadStartWeek.addEventListener("change", () => {
+    state.leadStartWeek = els.leadStartWeek.value;
+    if (state.leadStartWeek > state.leadEndWeek) {
+      state.leadEndWeek = state.leadStartWeek;
+      els.leadEndWeek.value = state.leadEndWeek;
+    }
+    renderTablesOnly();
+  });
+  els.leadEndWeek.addEventListener("change", () => {
+    state.leadEndWeek = els.leadEndWeek.value;
+    if (state.leadEndWeek < state.leadStartWeek) {
+      state.leadStartWeek = state.leadEndWeek;
+      els.leadStartWeek.value = state.leadStartWeek;
+    }
+    renderTablesOnly();
+  });
+  els.leadSearchInput.addEventListener("input", () => {
+    state.leadSearch = els.leadSearchInput.value;
+    if (state.tab === "leads") renderTablesOnly();
   });
   els.groupSelect.addEventListener("change", () => {
     state.group = els.groupSelect.value;
@@ -821,6 +1052,12 @@ function initFilters() {
       if (dealRow) openDealModal(dealRow.dataset.dealKey);
     });
   });
+  els.newLeadTable.addEventListener("click", (event) => {
+    const dealRow = event.target.closest("[data-deal-key]");
+    if (dealRow) openDealModal(dealRow.dataset.dealKey);
+  });
+  els.savePipelineMatching.addEventListener("click", savePipelineMatching);
+  els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
   document.addEventListener("click", (event) => {
     const settingsButton = event.target.closest("#openSettings");
     if (settingsButton) openSettings();
@@ -843,6 +1080,8 @@ function initFilters() {
       const targetFile = els.targetCsvInput.files?.[0]?.name;
       const dealFile = els.dealCsvInput.files?.[0]?.name;
       const mappingFile = els.mappingCsvInput.files?.[0]?.name;
+      if (input === els.targetCsvInput && targetFile) setAutoLoadedFileName("target", "");
+      if (input === els.mappingCsvInput && mappingFile) setAutoLoadedFileName("mapping", "");
       const selected = [
         targetFile && `Target: ${targetFile}`,
         dealFile && `Deal: ${dealFile}`,
@@ -856,6 +1095,8 @@ function initFilters() {
     els.targetCsvInput.value = "";
     els.dealCsvInput.value = "";
     els.mappingCsvInput.value = "";
+    setAutoLoadedFileName("target", "");
+    setAutoLoadedFileName("mapping", "");
     window.localStorage.removeItem(STORED_DATA_KEY);
     dashboardData = JSON.parse(JSON.stringify(initialDashboardData));
     state.group = "all";
@@ -866,6 +1107,7 @@ function initFilters() {
     renderFilterVisibility();
     render();
     setUploadStatus("Reset กลับไปใช้ข้อมูลตั้งต้นแล้ว", "success");
+    autoLoadDefaultSetupFiles();
   });
 }
 
@@ -894,6 +1136,16 @@ function renderPeriodOptions() {
   if (!weekOptions.some((week) => week.value === state.periodWeek)) state.periodWeek = weekOptions[0]?.value || "2026-W01";
   els.periodWeek.value = state.periodWeek;
 
+  const leadWeeks = leadWeekOptions();
+  const leadOptions = leadWeeks.map((week) => `<option value="${week.value}">${escapeHtml(week.label)}</option>`).join("");
+  els.leadStartWeek.innerHTML = leadOptions;
+  els.leadEndWeek.innerHTML = leadOptions;
+  if (!leadWeeks.some((week) => week.value === state.leadStartWeek)) state.leadStartWeek = leadWeeks.find((week) => week.value === "2026-W23")?.value || leadWeeks[0]?.value || "2026-W01";
+  if (!leadWeeks.some((week) => week.value === state.leadEndWeek)) state.leadEndWeek = leadWeeks.find((week) => week.value === "2026-W26")?.value || leadWeeks[leadWeeks.length - 1]?.value || state.leadStartWeek;
+  if (state.leadStartWeek > state.leadEndWeek) state.leadEndWeek = state.leadStartWeek;
+  els.leadStartWeek.value = state.leadStartWeek;
+  els.leadEndWeek.value = state.leadEndWeek;
+
   const rangeMonths = (dashboardData.months || []).filter((month) => month >= "2026-01" && month <= "2028-12");
   const rangeOptions = rangeMonths.map((month) => `<option value="${month}">${monthLabel(month)}</option>`).join("");
   els.startMonth.innerHTML = rangeOptions;
@@ -904,6 +1156,26 @@ function renderPeriodOptions() {
   els.endMonth.value = state.endMonth;
 }
 
+function leadWeekOptions() {
+  const weekSet = new Set();
+  allDealDetails().forEach((deal) => {
+    const week = isoWeekKeyFromDate(deal.createdDate);
+    if (week) weekSet.add(week);
+  });
+  const years = new Set((dashboardData.months || []).map((month) => Number(month.slice(0, 4))).filter(Boolean));
+  if (!years.size) {
+    years.add(2026);
+    years.add(2027);
+    years.add(2028);
+  }
+  for (const year of years) {
+    for (let week = 1; week <= weeksInIsoYear(year); week += 1) weekSet.add(`${year}-W${String(week).padStart(2, "0")}`);
+  }
+  return Array.from(weekSet)
+    .sort()
+    .map((week) => ({ value: week, label: weekLabel(week) }));
+}
+
 function ordinalQuarter(quarter) {
   return ["1st", "2nd", "3rd", "4th"][quarter - 1] || `${quarter}th`;
 }
@@ -912,7 +1184,7 @@ function renderFilterVisibility() {
   els.viewMode.value = state.viewMode;
   els.periodType.value = state.periodType;
   els.groupFilterContainer.hidden = false;
-  els.salesFilterContainer.hidden = state.viewMode !== "individual";
+  els.salesFilterContainer.hidden = false;
   els.periodSubYear.hidden = state.periodType !== "year";
   els.periodSubQuarter.hidden = state.periodType !== "quarter";
   els.periodSubWeek.hidden = state.periodType !== "week";
@@ -920,6 +1192,7 @@ function renderFilterVisibility() {
 }
 
 function openSettings() {
+  renderPipelineMatchingSettings();
   els.settingsModal.hidden = false;
   els.targetCsvInput.focus();
 }
@@ -935,6 +1208,238 @@ function closeDealModal() {
 function setUploadStatus(message, tone = "") {
   els.uploadStatus.textContent = message;
   els.uploadStatus.className = `upload-status ${tone}`.trim();
+}
+
+function setAutoLoadedFileName(kind, fileName) {
+  const target = kind === "target" ? els.targetAutoFileName : els.mappingAutoFileName;
+  if (!target) return;
+  target.hidden = !fileName;
+  target.textContent = fileName ? `${fileName} - โหลดขึ้นระบบเรียบร้อยแล้ว` : "";
+}
+
+function pipelineMatchingGroups() {
+  return Array.from(
+    new Set(
+      (dashboardData.sales || [])
+        .filter((sale) => sale.group && sale.group !== "Unmapped" && (sale.hasTarget || sale.hasPositiveTarget))
+        .map((sale) => sale.group),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "th"));
+}
+
+function pipelineMatchingPipelines() {
+  const seen = new Set();
+  const add = (pipeline) => {
+    const clean = cleanText(pipeline);
+    const key = normalizeName(clean);
+    if (!clean || seen.has(key)) return null;
+    seen.add(key);
+    return clean;
+  };
+  const ordered = defaultPipelineOrder.map(add).filter(Boolean);
+  const fromDeals = Array.from(new Set(allDealDetails().map((deal) => cleanText(deal.pipeline)).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "th"),
+  );
+  fromDeals.forEach((pipeline) => {
+    const added = add(pipeline);
+    if (added) ordered.push(added);
+  });
+  return ordered;
+}
+
+function renderPipelineMatchingSettings() {
+  const groups = pipelineMatchingGroups();
+  const pipelines = pipelineMatchingPipelines();
+  const mappings = activeMappings();
+  const ruleCount = mappingCounts(mappings).pipelineRules || 0;
+  els.pipelineMatchingSummary.textContent = ruleCount
+    ? `มี Pipeline Matching ที่เลือกไว้ ${ruleCount.toLocaleString("th-TH")} จุด ระบบจะนับยอดเฉพาะรายการ Included`
+    : "ยังไม่กำหนด Pipeline Matching ระบบจะนับทุก Pipeline เหมือนเดิม";
+  if (!groups.length || !pipelines.length) {
+    els.pipelineMatchingMatrix.innerHTML = `<div class="empty">ยังไม่มีข้อมูล Sale Group หรือ Pipeline สำหรับสร้าง Matrix</div>`;
+    return;
+  }
+  const header = `
+    <thead>
+      <tr>
+        <th class="sticky-col group-col">Sale Group</th>
+        <th class="sticky-col type-col">Sale Type</th>
+        ${pipelines.map((pipeline) => `<th class="pipeline-heading"><span>${escapeHtml(pipeline)}</span></th>`).join("")}
+      </tr>
+    </thead>
+  `;
+  const body = groups
+    .flatMap((group) =>
+      saleTypes.map((saleType) => {
+        const allowed = mappings.pipelineRuleMap.get(pipelineRuleKey(group, saleType)) || new Set();
+        return `
+          <tr>
+            <td class="sticky-col group-col"><strong>${escapeHtml(group)}</strong></td>
+            <td class="sticky-col type-col">${escapeHtml(saleType === "renew" ? "Renew" : "New")}</td>
+            ${pipelines
+              .map((pipeline) => {
+                const checked = allowed.has(normalizeName(pipeline)) ? " checked" : "";
+                return `
+                  <td class="pipeline-match-cell">
+                    <input type="checkbox" aria-label="${escapeHtml(`${group} ${saleType} ${pipeline}`)}" data-match-group="${escapeHtml(group)}" data-match-type="${saleType}" data-match-pipeline="${escapeHtml(pipeline)}"${checked} />
+                  </td>
+                `;
+              })
+              .join("")}
+          </tr>
+        `;
+      }),
+    )
+    .join("");
+  els.pipelineMatchingMatrix.innerHTML = `<table class="pipeline-matrix-table">${header}<tbody>${body}</tbody></table>`;
+}
+
+function collectPipelineMatchingRules() {
+  const pipelineRuleMap = new Map();
+  pipelineMatchingGroups().forEach((group) => {
+    saleTypes.forEach((saleType) => pipelineRuleMap.set(pipelineRuleKey(group, saleType), new Set()));
+  });
+  els.pipelineMatchingMatrix.querySelectorAll("input[data-match-pipeline]:checked").forEach((input) => {
+    const key = pipelineRuleKey(input.dataset.matchGroup, input.dataset.matchType);
+    if (!pipelineRuleMap.has(key)) pipelineRuleMap.set(key, new Set());
+    pipelineRuleMap.get(key).add(normalizeName(input.dataset.matchPipeline));
+  });
+  return pipelineRuleMap;
+}
+
+function applyPipelineMatchingRules(pipelineRuleMap, message) {
+  const mappings = activeMappings();
+  mappings.pipelineRuleMap = pipelineRuleMap;
+  mappings.counts = mappingCounts(mappings);
+  dashboardData = remapDashboardDataWithMappings(
+    {
+      ...dashboardData,
+      mappings: serializeMappings(mappings),
+      metadata: {
+        ...dashboardData.metadata,
+        generatedAt: new Date().toISOString(),
+        sourceFiles: {
+          ...dashboardData.metadata.sourceFiles,
+          mapping: "Pipeline Matching Setting",
+        },
+      },
+    },
+    mappings,
+  );
+  storeDashboardData(dashboardData);
+  renderPeriodOptions();
+  renderGroupOptions();
+  renderSaleOptions();
+  renderFilterVisibility();
+  render();
+  renderPipelineMatchingSettings();
+  setUploadStatus(message, "success");
+}
+
+function savePipelineMatching() {
+  applyPipelineMatchingRules(collectPipelineMatchingRules(), "บันทึก Pipeline Matching และคำนวณ Dashboard ใหม่แล้ว");
+}
+
+function clearPipelineMatching() {
+  applyPipelineMatchingRules(new Map(), "ล้าง Pipeline Matching แล้ว ระบบกลับไปนับทุก Pipeline");
+}
+
+async function autoLoadDefaultPipelineMatching() {
+  const currentMappings = activeMappings();
+  if ((mappingCounts(currentMappings).pipelineRules || 0) > 0) return;
+  try {
+    const response = await fetch("./data/Stage Mapping Button.csv", { cache: "no-store" });
+    if (!response.ok) return;
+    const defaultRules = parseMappingCsv(await response.text());
+    if (!(mappingCounts(defaultRules).pipelineRules || 0)) return;
+    const mappings = mergeMappings(currentMappings, defaultRules);
+    dashboardData = remapDashboardDataWithMappings(
+      {
+        ...dashboardData,
+        mappings: serializeMappings(mappings),
+        metadata: {
+          ...dashboardData.metadata,
+          generatedAt: new Date().toISOString(),
+          sourceFiles: {
+            ...dashboardData.metadata.sourceFiles,
+            mapping: "./data/Stage Mapping Button.csv",
+          },
+        },
+      },
+      mappings,
+    );
+    storeDashboardData(dashboardData);
+    renderPeriodOptions();
+    renderGroupOptions();
+    renderSaleOptions();
+    renderFilterVisibility();
+    render();
+  } catch {
+    // The dashboard can still run without the optional default rule file.
+  }
+}
+
+async function autoLoadDefaultSetupFiles() {
+  const statusParts = [];
+  let mappings = activeMappings();
+  try {
+    const stageResponse = await fetch("./data/Stage Mapping.csv", { cache: "no-store" });
+    if (stageResponse.ok) {
+      const stageMappings = parseMappingCsv(await stageResponse.text());
+      if (mappingCounts(stageMappings).stages || mappingCounts(stageMappings).dealTypes || mappingCounts(stageMappings).pipelines) {
+        mappings = mergeMappings(mappings, stageMappings);
+        statusParts.push("Stage Mapping");
+        setAutoLoadedFileName("mapping", "Stage Mapping.csv");
+      }
+    }
+
+    const buttonResponse = await fetch("./data/Stage Mapping Button.csv", { cache: "no-store" });
+    if (buttonResponse.ok) {
+      const buttonMappings = parseMappingCsv(await buttonResponse.text());
+      if (mappingCounts(buttonMappings).pipelineRules) {
+        mappings = mergeMappings(mappings, buttonMappings);
+        statusParts.push("Pipeline Matching");
+      }
+    }
+
+    dashboardData = remapDashboardDataWithMappings(
+      {
+        ...dashboardData,
+        mappings: serializeMappings(mappings),
+        metadata: {
+          ...dashboardData.metadata,
+          generatedAt: new Date().toISOString(),
+          sourceFiles: {
+            ...dashboardData.metadata.sourceFiles,
+            mapping: statusParts.join(" + "),
+          },
+        },
+      },
+      mappings,
+    );
+
+    const targetResponse = await fetch("./data/Sale Target.csv", { cache: "no-store" });
+    if (targetResponse.ok) {
+      const targetRows = parseCsv(await targetResponse.text());
+      if (targetRows.length) {
+        validateTargetRows(targetRows);
+        const targetSales = buildTargetSalesFromRows(targetRows, mappings);
+        dashboardData = mergeTargetSalesIntoDashboard(dashboardData, targetSales, "./data/Sale Target.csv");
+        statusParts.push("Sale Target");
+        setAutoLoadedFileName("target", "Sale Target.csv");
+      }
+    }
+
+    storeDashboardData(dashboardData);
+    renderPeriodOptions();
+    renderGroupOptions();
+    renderSaleOptions();
+    renderFilterVisibility();
+    render();
+    if (statusParts.length) setUploadStatus(`Auto-load สำเร็จ: ${statusParts.join(" | ")}`, "success");
+  } catch (error) {
+    setUploadStatus(error.message || "Auto-load setup file ไม่สำเร็จ", "error");
+  }
 }
 
 function renderGroupOptions() {
@@ -1039,13 +1544,16 @@ async function handleCsvRefresh() {
     storeDashboardData(dashboardData);
     state.group = "all";
     state.sale = "all";
-    state.search = "";
-    els.searchInput.value = "";
+  state.search = "";
+  state.leadSearch = "";
+  els.searchInput.value = "";
+  els.leadSearchInput.value = "";
     renderPeriodOptions();
     renderGroupOptions();
     renderSaleOptions();
     renderFilterVisibility();
     render();
+    if (!els.settingsModal.hidden) renderPipelineMatchingSettings();
     setUploadStatus(`Refresh สำเร็จ: ${statusParts.join(" | ")}`, "success");
   } catch (error) {
     setUploadStatus(error.message || "ไม่สามารถอ่านไฟล์นี้ได้", "error");
@@ -1183,6 +1691,9 @@ function remapDashboardDataWithMappings(data, mappings) {
     stale30Open: { count: 0, amount: 0 },
     notContactedOpen: { count: 0, amount: 0 },
     pipelineGroupMismatch: { count: 0, amount: 0 },
+    pipelineIncluded: { count: 0, amount: 0 },
+    pipelineExcluded: { count: 0, amount: 0 },
+    pipelineUnmapped: { count: 0, amount: 0 },
   };
 
   const sourceDetails = Array.isArray(data.dealDetails)
@@ -1201,6 +1712,7 @@ function remapDashboardDataWithMappings(data, mappings) {
     const category = dealCategory(dealType, { Pipeline: deal.pipeline, "Deal Type": rawDealType });
     const sale = salesByKey.get(deal.saleKey);
     const pipelineGroup = mappings.pipelineGroupMap.get(normalizeName(deal.pipeline)) || "";
+    const counting = pipelineCountingResult(sale?.group || deal.group, category, deal.pipeline, mappings);
     const expected = parseDateValue(deal.expectedDate);
     const stageChanged = parseDateValue(deal.stageChangeDate);
     const created = parseDateValue(deal.createdDate);
@@ -1229,6 +1741,9 @@ function remapDashboardDataWithMappings(data, mappings) {
       rawDealType,
       pipelineGroup,
       pipelineGroupMatch: !pipelineGroup || pipelineGroup === (sale?.group || deal.group),
+      countingStatus: counting.status,
+      countingIncluded: counting.included,
+      countingLabel: counting.label,
       forecastAmount,
       expectedMonth: expected?.monthKey || deal.expectedMonth || "",
       stageMonth: stageChanged?.monthKey || deal.stageMonth || "",
@@ -1241,6 +1756,16 @@ function remapDashboardDataWithMappings(data, mappings) {
     if (rawStage === "Pre-WON") addQuality(quality.preWonAsWon, amount);
     if (rawStage === "Pre-LOST") addQuality(quality.preLostAsLost, amount);
     if (pipelineGroup && pipelineGroup !== remapped.group) addQuality(quality.pipelineGroupMismatch, amount);
+    addQuality(
+      counting.status === "included"
+        ? quality.pipelineIncluded
+        : counting.status === "excluded"
+          ? quality.pipelineExcluded
+          : quality.pipelineUnmapped,
+      amount,
+    );
+
+    if (!counting.included) return remapped;
 
     if (status === "won" || status === "lost") {
       addQuality(status === "won" ? quality.won : quality.lost, amount);
@@ -1315,6 +1840,9 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
     stale30Open: { count: 0, amount: 0 },
     notContactedOpen: { count: 0, amount: 0 },
     pipelineGroupMismatch: { count: 0, amount: 0 },
+    pipelineIncluded: { count: 0, amount: 0 },
+    pipelineExcluded: { count: 0, amount: 0 },
+    pipelineUnmapped: { count: 0, amount: 0 },
   };
 
   const mapResponsible = (responsible) => {
@@ -1363,6 +1891,7 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
 
     const sale = saleByKey.get(saleKey);
     if (!sale.responsibleNames.includes(responsible)) sale.responsibleNames.push(responsible);
+    const counting = pipelineCountingResult(sale.group, category, pipeline, mappings);
 
     if (sale.group === "Unmapped") {
       if (!unmappedResponsibles.has(responsible)) unmappedResponsibles.set(responsible, { responsible, count: 0, amount: 0 });
@@ -1388,6 +1917,9 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
       pipeline,
       pipelineGroup,
       pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+      countingStatus: counting.status,
+      countingIncluded: counting.included,
+      countingLabel: counting.label,
       dealType,
       rawDealType: cleanText(row["Deal Type"]),
       product: cleanText(row["Product Type"]) || "(blank)",
@@ -1413,6 +1945,16 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
     };
     dealDetails.push(detail);
     if (pipelineGroup && pipelineGroup !== sale.group) addQuality(quality.pipelineGroupMismatch, amount);
+    addQuality(
+      counting.status === "included"
+        ? quality.pipelineIncluded
+        : counting.status === "excluded"
+          ? quality.pipelineExcluded
+          : quality.pipelineUnmapped,
+      amount,
+    );
+
+    if (!counting.included) continue;
 
     if (status === "won" || status === "lost") {
       addQuality(status === "won" ? quality.won : quality.lost, amount);
@@ -1455,6 +1997,9 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
       pipeline,
       pipelineGroup,
       pipelineGroupMatch: !pipelineGroup || pipelineGroup === sale.group,
+      countingStatus: counting.status,
+      countingIncluded: counting.included,
+      countingLabel: counting.label,
       dealType,
       rawDealType: cleanText(row["Deal Type"]),
       product: cleanText(row["Product Type"]) || "(blank)",
@@ -1620,33 +2165,22 @@ function periodLabel() {
   return `${monthLabel(state.startMonth)} - ${monthLabel(state.endMonth)}`;
 }
 
-function metricForMonth(month, sales, category = state.category) {
-  const saleSet = new Set(sales.map((sale) => sale.key));
-  const target = sum(sales, (sale) => targetForSale(sale, [month], category));
+function metricForMonth(month, scope, category = state.category) {
+  const target = sum(scope.sales, (sale) => targetForSale(sale, [month], category));
+  const monthDeals = filteredDeals(scope, { category, periodKey: month });
   const actual = sum(
-    dashboardData.facts.filter(
-      (fact) =>
-        saleSet.has(fact.saleKey) &&
-        fact.monthKey === month &&
-        fact.status === "won" &&
-        (category === "all" || fact.category === category),
-    ),
-    (fact) => fact.amount,
+    monthDeals.filter((deal) => deal.status === "won"),
+    (deal) => deal.amount,
   );
   const forecast = sum(
-    dashboardData.openDeals.filter(
-      (deal) =>
-        saleSet.has(deal.saleKey) &&
-        dealPeriodKey(deal, month) === month &&
-        (category === "all" || deal.category === category),
-    ),
+    monthDeals.filter((deal) => deal.status === "open"),
     (deal) => deal.forecastAmount,
   );
   return { month, target, actual, forecast };
 }
 
 function renderMonthlyChart(scope) {
-  const rows = scope.months.map((month) => metricForMonth(month, scope.sales));
+  const rows = scope.months.map((month) => metricForMonth(month, scope));
   const maxValue = Math.max(1, ...rows.flatMap((row) => [row.target, row.actual, row.forecast]));
   els.monthlyChart.innerHTML = rows
     .map((row) => {
@@ -1687,12 +2221,13 @@ function renderTeamChart(scope) {
     .map((group) => {
       const target = sum(group.sales, (sale) => targetForSale(sale, scope.months));
       const saleSet = new Set(group.sales.map((sale) => sale.key));
+      const groupScope = { ...scope, saleSet };
       const actual = sum(
-        scope.actualFacts.filter((fact) => saleSet.has(fact.saleKey)),
+        scope.actualFacts.filter((fact) => itemMatchesSaleScope(fact, groupScope)),
         (fact) => fact.amount,
       );
       const forecast = sum(
-        scope.openPeriod.filter((deal) => saleSet.has(deal.saleKey)),
+        scope.openPeriod.filter((deal) => itemMatchesSaleScope(deal, groupScope)),
         (deal) => deal.forecastAmount,
       );
       return {
@@ -1725,7 +2260,8 @@ function renderTeamChart(scope) {
 function renderCategoryMix(scope) {
   els.categoryMix.innerHTML = ["new", "renew"]
     .map((category) => {
-      const target = sum(scope.sales, (sale) => targetForSale(sale, scope.months, category));
+      const filteredOut = state.category !== "all" && state.category !== category;
+      const target = filteredOut ? 0 : sum(scope.sales, (sale) => targetForSale(sale, scope.months, category));
       const actual = sum(
         scope.actualFacts.filter((fact) => fact.category === category),
         (fact) => fact.amount,
@@ -1776,10 +2312,7 @@ function riskScore(deal) {
 }
 
 function dealMatchesSearch(deal) {
-  const q = normalizeSearch(state.search);
-  if (!q) return true;
-  const text = `${deal.saleName} ${deal.responsible} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage}`.toLowerCase();
-  return text.includes(q);
+  return dealMatchesGlobalSearch(deal);
 }
 
 function renderTopDealsTable(scope) {
@@ -1867,17 +2400,16 @@ function performanceBucket(deal) {
 }
 
 function filteredPerformanceDeals(scope, category = "all") {
-  return allDealDetails()
-    .filter((deal) => scope.saleSet.has(deal.saleKey))
-    .filter((deal) => (category === "all" ? categoryMatches(deal.category) : deal.category === category))
-    .filter((deal) => scope.monthSet.has(dealPeriodKey(deal, scope.months[0])));
+  return filteredDeals(scope, { category });
 }
 
 function buildPerformanceRows(scope, category) {
   const deals = filteredPerformanceDeals(scope, category);
+  const targetCategory = category === "all" ? state.category : category;
+  const targetIsFilteredOut = state.category !== "all" && category !== "all" && category !== state.category;
   const rows = scope.sales.map((sale) => ({
     sale,
-    target: targetForSale(sale, scope.months, category === "all" ? "all" : category),
+    target: targetIsFilteredOut ? 0 : targetForSale(sale, scope.months, targetCategory),
     won: 0,
     commit: 0,
     upside: 0,
@@ -1886,7 +2418,7 @@ function buildPerformanceRows(scope, category) {
   }));
   const rowMap = new Map(rows.map((row) => [row.sale.key, row]));
   deals.forEach((deal) => {
-    const row = rowMap.get(deal.saleKey);
+    const row = rowMap.get(deal.saleKey) || rows.find((item) => itemMatchesSaleRecord(deal, item.sale));
     if (!row) return;
     row[performanceBucket(deal)] += deal.amount;
   });
@@ -1977,7 +2509,7 @@ function renderCumulativePerformanceChart(scope) {
   const monthlyDeals = filteredPerformanceDeals(scope, "all");
   const monthly = months.map((month) => ({
     month,
-    target: sum(scope.sales, (sale) => targetForSale(sale, [month], "all")),
+    target: sum(scope.sales, (sale) => targetForSale(sale, [month], state.category)),
     won: 0,
     commit: 0,
     upside: 0,
@@ -2073,12 +2605,14 @@ function renderTransactionTable(scope) {
 }
 
 function transactionSearchText(deal) {
+  const expectedCloseDate = displayDate(deal.expectedDate);
   return normalizeSearch(
-    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.dealType || ""} ${deal.product} ${deal.category} ${performanceBucket(deal)}`,
+    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.dealType || ""} ${deal.product} ${deal.category} ${performanceBucket(deal)} ${deal.expectedDate || ""} ${expectedCloseDate}`,
   );
 }
 
 function transactionSearchTokens(deal) {
+  const expectedCloseDate = displayDate(deal.expectedDate);
   return new Set(
     [
       deal.id,
@@ -2091,6 +2625,8 @@ function transactionSearchTokens(deal) {
       deal.dealType,
       deal.product,
       deal.category,
+      deal.expectedDate,
+      expectedCloseDate,
       performanceBucket(deal),
     ]
       .map(normalizeSearch)
@@ -2109,6 +2645,7 @@ function sortTransactionRows(rows) {
   const factor = dir === "asc" ? 1 : -1;
   rows.sort((a, b) => {
     if (key === "amount") return factor * ((a.amount || 0) - (b.amount || 0));
+    if (key === "expectedDate") return factor * ((parseDateValue(a.expectedDate)?.ts || 0) - (parseDateValue(b.expectedDate)?.ts || 0));
     return factor * String(a[key] || "").localeCompare(String(b[key] || ""), "th");
   });
 }
@@ -2116,16 +2653,16 @@ function sortTransactionRows(rows) {
 function transactionTable(rows) {
   if (!rows.length) return `<div class="empty">ไม่มี Transaction ที่ตรงกับเงื่อนไข</div>`;
   return `
-    <table>
+    <table class="transaction-table">
       <thead>
         <tr>
-          ${transactionHeader("id", "ID")}
-          ${transactionHeader("saleName", "Sale")}
-          ${transactionHeader("company", "Company / Deal")}
-          ${transactionHeader("category", "Type")}
-          ${transactionHeader("stage", "Matched Stage")}
-          ${transactionHeader("trackingMonth", "Month")}
-          ${transactionHeader("amount", "Amount", true)}
+          ${transactionHeader("id", "ID", false, "tx-id-col")}
+          ${transactionHeader("saleName", "Sale", false, "tx-sale-col")}
+          ${transactionHeader("company", "Company / Deal", false, "tx-company-col")}
+          ${transactionHeader("category", "Type", false, "tx-type-col")}
+          ${transactionHeader("stage", "Matched Stage", false, "tx-stage-col")}
+          ${transactionHeader("expectedDate", "Expected", false, "tx-expected-col")}
+          ${transactionHeader("amount", "Amount", true, "tx-amount-col")}
         </tr>
       </thead>
       <tbody>
@@ -2133,13 +2670,13 @@ function transactionTable(rows) {
           .map(
             (deal) => `
               <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
-                <td>${escapeHtml(deal.id || "-")}</td>
-                <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
-                <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
-                <td>${escapeHtml(deal.category)}</td>
-                <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span><br>${stageBucketBadge(performanceBucket(deal))}</td>
-                <td>${escapeHtml(dealPeriodLabel(deal))}</td>
-                <td class="num">${money(deal.amount)}</td>
+                <td class="tx-id-col">${escapeHtml(deal.id || "-")}</td>
+                <td class="tx-sale-col"><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
+                <td class="company-cell tx-company-col"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
+                <td class="tx-type-col">${escapeHtml(deal.category)}</td>
+                <td class="tx-stage-col"><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span><br>${stageBucketBadge(performanceBucket(deal))}</td>
+                <td class="tx-expected-col">${escapeHtml(displayDate(deal.expectedDate))}</td>
+                <td class="num tx-amount-col">${money(deal.amount)}</td>
               </tr>
             `,
           )
@@ -2149,25 +2686,15 @@ function transactionTable(rows) {
   `;
 }
 
-function transactionHeader(key, label, numeric = false) {
+function transactionHeader(key, label, numeric = false, extraClass = "") {
   const active = state.transactionSort.key === key;
   const icon = active ? (state.transactionSort.dir === "asc" ? "↑" : "↓") : "↕";
-  return `<th class="${numeric ? "num" : ""}"><button type="button" class="sort-button" data-transaction-sort="${key}">${escapeHtml(label)} ${icon}</button></th>`;
+  const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
+  return `<th class="${className}"><button type="button" class="sort-button" data-transaction-sort="${key}">${escapeHtml(label)} ${icon}</button></th>`;
 }
 
 function renderDealDetailTable(scope) {
-  const q = normalizeSearch(state.search);
-  const rows = allDealDetails()
-    .filter((deal) => scope.saleSet.has(deal.saleKey))
-    .filter((deal) => categoryMatches(deal.category))
-    .filter((deal) => {
-      return scope.monthSet.has(dealPeriodKey(deal, scope.months[0]));
-    })
-    .filter((deal) => {
-      if (!q) return true;
-      const text = `${deal.saleName} ${deal.responsible} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.dealType || ""} ${deal.id}`.toLowerCase();
-      return text.includes(q);
-    });
+  const rows = filteredDeals(scope, { countingIncluded: false });
   sortDealDetailRows(rows);
   const visibleRows = rows.slice(0, 300);
 
@@ -2211,6 +2738,7 @@ function dealDetailTable(rows, emptyText) {
           ${dealDetailHeader("status", "Status")}
           ${dealDetailHeader("stage", "Matched Stage")}
           ${dealDetailHeader("pipeline", "Pipeline")}
+          ${dealDetailHeader("countingStatus", "Counting")}
           ${dealDetailHeader("product", "Product")}
           ${dealDetailHeader("amount", "Amount", true)}
           ${dealDetailHeader("forecastAmount", "Forecast", true)}
@@ -2230,6 +2758,7 @@ function dealDetailTable(rows, emptyText) {
                 <td>${statusBadge(deal.status)}</td>
                 <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
                 <td>${escapeHtml(deal.pipeline)}${deal.pipelineGroup && !deal.pipelineGroupMatch ? `<br><span class="badge warn">${escapeHtml(deal.pipelineGroup)}</span>` : ""}</td>
+                <td>${countingBadge(deal)}</td>
                 <td>${escapeHtml(deal.product)}</td>
                 <td class="num">${money(deal.amount)}</td>
                 <td class="num">${money(deal.forecastAmount || 0)}</td>
@@ -2250,6 +2779,152 @@ function dealDetailHeader(key, label, numeric = false, extraClass = "") {
   const icon = active ? (state.dealDetailSort.dir === "asc" ? "↑" : "↓") : "↕";
   const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
   return `<th class="${className}"><button type="button" class="sort-button" data-deal-detail-sort="${key}">${escapeHtml(label)} ${icon}</button></th>`;
+}
+
+function leadCreatedWeek(deal) {
+  return isoWeekKeyFromDate(deal.createdDate);
+}
+
+function filteredLeadDeals() {
+  const sales = visibleSales();
+  const saleSet = new Set(sales.map((sale) => sale.key));
+  const selectedSale = selectedSaleRecord();
+  const scope = { saleSet, selectedSale, months: [], monthSet: new Set() };
+  const searchTerms = [state.search, state.leadSearch].map(normalizeSearch).filter(Boolean);
+  return filteredDeals(scope, { period: false, globalSearch: false })
+    .map((deal) => ({ ...deal, createdWeek: leadCreatedWeek(deal) }))
+    .filter((deal) => deal.createdWeek && deal.createdWeek >= state.leadStartWeek && deal.createdWeek <= state.leadEndWeek)
+    .filter((deal) => {
+      if (!searchTerms.length) return true;
+      const text = dealSearchText(deal);
+      return searchTerms.every((term) => text.includes(term));
+    })
+    .sort((a, b) => a.createdWeek.localeCompare(b.createdWeek) || b.amount - a.amount);
+}
+
+function renderNewLead() {
+  const deals = filteredLeadDeals();
+  renderNewLeadSummary(deals);
+  renderNewLeadWeeklyChart(deals);
+  renderNewLeadTable(deals);
+}
+
+function renderNewLeadSummary(deals) {
+  const weekCount = new Set(deals.map((deal) => deal.createdWeek)).size;
+  const saleCount = new Set(deals.map((deal) => deal.saleKey)).size;
+  const amount = sum(deals, (deal) => deal.amount);
+  const avgPerWeek = weekCount ? deals.length / weekCount : 0;
+  const cards = [
+    ["Total Leads", deals.length.toLocaleString("th-TH"), `${weekLabel(state.leadStartWeek)} ถึง ${weekLabel(state.leadEndWeek)}`],
+    ["Pipeline Amount", compactMoney(amount), "มูลค่า Lead ที่สร้างในช่วงนี้"],
+    ["Active Sales", saleCount.toLocaleString("th-TH"), "จำนวน Sale ที่สร้าง Lead"],
+    ["Avg Leads / Week", avgPerWeek.toFixed(1), "ใช้ดู consistency ในการหา lead"],
+  ];
+  els.newLeadSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderNewLeadWeeklyChart(deals) {
+  const weeks = leadWeekOptions()
+    .map((week) => week.value)
+    .filter((week) => week >= state.leadStartWeek && week <= state.leadEndWeek);
+  const rows = weeks.map((week) => ({ week, count: 0, amount: 0 }));
+  const rowMap = new Map(rows.map((row) => [row.week, row]));
+  deals.forEach((deal) => {
+    const row = rowMap.get(deal.createdWeek);
+    if (!row) return;
+    row.count += 1;
+    row.amount += deal.amount;
+  });
+  const maxCount = Math.max(1, ...rows.map((row) => row.count));
+  const maxAmount = Math.max(1, ...rows.map((row) => row.amount));
+  els.newLeadWeeklyChart.innerHTML = rows.length
+    ? rows
+        .map(
+          (row) => `
+            <div class="lead-week-row">
+              <div class="lead-week-name">${escapeHtml(row.week)}</div>
+              <div class="bar-group">
+                <div class="bar-track" title="${row.count.toLocaleString("th-TH")} leads">
+                  <div class="bar actual" style="width:${(row.count / maxCount) * 100}%"></div>
+                </div>
+                <div class="bar-track" title="${money(row.amount)}">
+                  <div class="bar forecast" style="width:${(row.amount / maxAmount) * 100}%"></div>
+                </div>
+              </div>
+              <div class="lead-week-value">${row.count.toLocaleString("th-TH")} leads<br><span class="muted">${compactMoney(row.amount)}</span></div>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="empty">ไม่มี Lead ในช่วง Week ที่เลือก</div>`;
+}
+
+function renderNewLeadTable(deals) {
+  if (!deals.length) {
+    els.newLeadTable.innerHTML = `<div class="empty">ไม่มี Lead ในช่วง Week ที่เลือก</div>`;
+    return;
+  }
+  const grouped = new Map();
+  deals.forEach((deal) => {
+    if (!grouped.has(deal.createdWeek)) grouped.set(deal.createdWeek, []);
+    grouped.get(deal.createdWeek).push(deal);
+  });
+  const rowsHtml = Array.from(grouped.entries())
+    .map(([week, weekDeals]) => {
+      const totalAmount = sum(weekDeals, (deal) => deal.amount);
+      const groupHeader = `
+        <tr class="week-group-row">
+          <td colspan="8"><strong>${escapeHtml(weekLabel(week))}</strong><span>${weekDeals.length.toLocaleString("th-TH")} leads · ${compactMoney(totalAmount)}</span></td>
+        </tr>
+      `;
+      const detailRows = weekDeals
+        .sort((a, b) => a.saleName.localeCompare(b.saleName, "th") || b.amount - a.amount)
+        .slice(0, 120)
+        .map(
+          (deal) => `
+            <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
+              <td>${escapeHtml(deal.createdDate || "-")}</td>
+              <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
+              <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || `ID ${deal.id}`)}</span></td>
+              <td>${escapeHtml(deal.category)}</td>
+              <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
+              <td>${escapeHtml(deal.pipeline || "-")}</td>
+              <td class="num">${money(deal.amount)}</td>
+              <td>${deal.status === "open" ? riskBadges(deal) : progressBadge(deal.status)}</td>
+            </tr>
+          `,
+        )
+        .join("");
+      return groupHeader + detailRows;
+    })
+    .join("");
+  els.newLeadTable.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Created</th>
+          <th>Sale</th>
+          <th class="company-cell">Company / Deal</th>
+          <th>Type</th>
+          <th>Matched Stage</th>
+          <th>Pipeline</th>
+          <th class="num">Amount</th>
+          <th>Risk / Progress</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
 }
 
 function dealDetailKey(deal) {
@@ -2293,6 +2968,7 @@ function dealModalHtml(deal) {
         <h3>Pipeline & Mapping</h3>
         ${detailLine("Pipeline", `${escapeHtml(deal.pipeline || "-")}${deal.pipelineGroup ? ` <span class="muted">expected ${escapeHtml(deal.pipelineGroup)}</span>` : ""}`, true)}
         ${detailLine("Pipeline Fit", deal.pipelineGroup && !deal.pipelineGroupMatch ? `<span class="badge warn">Sale Group mismatch</span>` : `<span class="badge good">Matched / No rule</span>`, true)}
+        ${detailLine("Counting Rule", countingBadge(deal), true)}
         ${detailLine("Matched Stage", escapeHtml(deal.stage || "-"), true)}
         ${detailLine("Raw Stage", deal.rawStage || deal.stage || "-")}
         ${detailLine("Raw Deal Type", deal.rawDealType || deal.dealType || "-")}
@@ -2378,6 +3054,12 @@ function stageBucketBadge(bucket) {
   return `<span class="badge ${className}">${escapeHtml(statusLabel(bucket))}</span>`;
 }
 
+function countingBadge(deal) {
+  if (deal.countingStatus === "excluded") return `<span class="badge danger">Excluded</span>`;
+  if (deal.countingStatus === "unmapped") return `<span class="badge warn">Unmapped</span>`;
+  return `<span class="badge good">Included</span>`;
+}
+
 function progressBadge(status) {
   if (status === "won") return `<span class="badge good">สำเร็จแล้ว</span>`;
   if (status === "lost") return `<span class="badge danger">ปิด Lost แล้ว</span>`;
@@ -2441,7 +3123,13 @@ function renderDataQuality() {
   const q = dashboardData.quality;
   const mappingCounts = dashboardData.mappings?.counts || { pipelines: 0, stages: 0, dealTypes: 0, sales: 0 };
   const cards = [
-    ["Data Mapping loaded", { count: mappingCounts.pipelines + mappingCounts.stages + mappingCounts.dealTypes + mappingCounts.sales, amount: 0 }],
+    [
+      "Data Mapping loaded",
+      { count: mappingCounts.pipelines + (mappingCounts.pipelineRules || 0) + mappingCounts.stages + mappingCounts.dealTypes + mappingCounts.sales, amount: 0 },
+    ],
+    ["Pipeline rules included", q.pipelineIncluded || { count: 0, amount: 0 }],
+    ["Pipeline rules excluded", q.pipelineExcluded || { count: 0, amount: 0 }],
+    ["Pipeline rules unmapped", q.pipelineUnmapped || { count: 0, amount: 0 }],
     ["Pre-WON counted as Won", q.preWonAsWon],
     ["Pre-LOST counted as Lost", q.preLostAsLost],
     ["Won total after normalization", q.won],
@@ -2502,6 +3190,7 @@ function renderTablesOnly() {
     renderTransactionTable(scope);
   }
   if (state.tab === "deals") renderDealDetailTable(scope);
+  if (state.tab === "leads") renderNewLead();
   if (state.tab === "pipeline") {
     renderRiskSummary(scope);
     renderRiskByStage(scope);
@@ -2512,6 +3201,7 @@ function renderTablesOnly() {
 
 function render() {
   const scope = calcScope();
+  els.emptyDataBanner.hidden = hasDealData();
   renderMeta();
   renderKpis(scope);
   renderMonthlyChart(scope);
@@ -2520,6 +3210,7 @@ function render() {
   renderStatusMix(scope);
   renderTopDealsTable(scope);
   renderDealDetailTable(scope);
+  renderNewLead();
   renderSalesPerformanceCharts(scope);
   renderTransactionTable(scope);
   renderRiskSummary(scope);
@@ -2530,3 +3221,4 @@ function render() {
 
 initFilters();
 render();
+autoLoadDefaultSetupFiles();
