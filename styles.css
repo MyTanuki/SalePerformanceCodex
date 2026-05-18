@@ -223,8 +223,8 @@ h2 {
 }
 
 .settings-modal {
-  width: min(1180px, 100%);
-  max-height: min(90vh, 900px);
+  width: min(940px, calc(100vw - 36px));
+  max-height: min(96vh, 980px);
   overflow: auto;
 }
 
@@ -445,8 +445,8 @@ input[type="file"] {
 
 .pipeline-matching-matrix {
   width: 100%;
-  max-height: 520px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -464,7 +464,7 @@ input[type="file"] {
 .pipeline-matrix-table td {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 4px;
+  padding: 2px 3px;
   text-align: center;
   vertical-align: middle;
   line-height: 1.2;
@@ -474,15 +474,15 @@ input[type="file"] {
   position: sticky;
   top: 0;
   z-index: 4;
-  background: #fff700;
-  color: #111827;
+  background: #e5e7eb;
+  color: var(--ink);
 }
 
 .pipeline-heading {
-  width: 32px;
-  min-width: 32px;
-  max-width: 32px;
-  height: 180px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 142px;
   padding: 0;
   vertical-align: bottom;
 }
@@ -491,13 +491,13 @@ input[type="file"] {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  height: 160px;
-  max-height: 160px;
+  height: 126px;
+  max-height: 126px;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   white-space: nowrap;
   font-weight: 900;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .pipeline-matrix-table .sticky-col {
@@ -508,33 +508,33 @@ input[type="file"] {
 
 .pipeline-matrix-table thead .sticky-col {
   z-index: 6;
-  background: #fff700;
+  background: #e5e7eb;
 }
 
 .pipeline-matrix-table .group-col {
   left: 0;
-  width: 176px;
-  min-width: 176px;
-  max-width: 176px;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
   text-align: left;
 }
 
 .pipeline-matrix-table .type-col {
-  left: 176px;
-  width: 76px;
-  min-width: 76px;
-  max-width: 76px;
+  left: 160px;
+  width: 66px;
+  min-width: 66px;
+  max-width: 66px;
 }
 
 .pipeline-match-cell {
-  width: 32px;
-  min-width: 32px;
-  max-width: 32px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
 }
 
 .pipeline-match-cell input {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   accent-color: var(--ink);
   cursor: pointer;
 }
@@ -804,7 +804,15 @@ input[type="search"]:focus {
   flex-wrap: wrap;
   margin: 12px 0 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.kpi-summary-meta b {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1;
 }
 
 .kpi-progress-track {
@@ -1394,6 +1402,10 @@ input[type="search"]:focus {
   font-size: 12px;
 }
 
+.lead-summary-card small {
+  white-space: pre-line;
+}
+
 .lead-summary-card strong {
   color: var(--ink);
   font-size: 22px;
@@ -1609,6 +1621,12 @@ th.num {
 
 :root[data-theme="dark"] .badge.info {
   background: rgba(96, 165, 250, 0.18);
+}
+
+:root[data-theme="dark"] .pipeline-matrix-table thead th,
+:root[data-theme="dark"] .pipeline-matrix-table thead .sticky-col {
+  background: #334155;
+  color: var(--ink);
 }
 
 .empty {

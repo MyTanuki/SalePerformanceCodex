@@ -14,7 +14,7 @@ const state = {
   periodWeek: "2026-W20",
   startMonth: "2026-01",
   endMonth: "2026-12",
-  leadStartWeek: previousIsoWeekKey(),
+  leadStartWeek: previousIsoWeekKey(localIsoDate(), 3),
   leadEndWeek: isoWeekKeyFromDate(localIsoDate()),
   leadSearch: "",
   category: "all",
@@ -715,10 +715,10 @@ function isoWeekKeyFromDate(value) {
   return `${isoYear}-W${String(week).padStart(2, "0")}`;
 }
 
-function previousIsoWeekKey(value = localIsoDate()) {
+function previousIsoWeekKey(value = localIsoDate(), weeksBack = 1) {
   const parts = parseDateValue(value);
   if (!parts) return "";
-  return isoWeekKeyFromDate(makeDateParts(dateToIso(new Date(parts.ts - 7 * 86400000))));
+  return isoWeekKeyFromDate(makeDateParts(dateToIso(new Date(parts.ts - weeksBack * 7 * 86400000))));
 }
 
 function weeksInIsoYear(year) {
@@ -1149,7 +1149,7 @@ function renderPeriodOptions() {
   const leadOptions = leadWeeks.map((week) => `<option value="${week.value}">${escapeHtml(week.label)}</option>`).join("");
   els.leadStartWeek.innerHTML = leadOptions;
   els.leadEndWeek.innerHTML = leadOptions;
-  const previousWeek = previousIsoWeekKey();
+  const previousWeek = previousIsoWeekKey(localIsoDate(), 3);
   const currentWeek = isoWeekKeyFromDate(localIsoDate());
   if (!leadWeeks.some((week) => week.value === state.leadStartWeek)) state.leadStartWeek = leadWeeks.find((week) => week.value === previousWeek)?.value || leadWeeks[0]?.value || "2026-W01";
   if (!leadWeeks.some((week) => week.value === state.leadEndWeek)) state.leadEndWeek = leadWeeks.find((week) => week.value === currentWeek)?.value || leadWeeks[leadWeeks.length - 1]?.value || state.leadStartWeek;
@@ -2832,6 +2832,18 @@ function leadCreatedWeek(deal) {
   return isoWeekKeyFromDate(deal.createdDate);
 }
 
+function leadCreatedTs(deal) {
+  return parseDateValue(deal.createdDate)?.ts || 0;
+}
+
+function sortLeadByCreatedDate(a, b) {
+  return (
+    leadCreatedTs(a) - leadCreatedTs(b) ||
+    String(a.id || "").localeCompare(String(b.id || ""), "th", { numeric: true }) ||
+    a.saleName.localeCompare(b.saleName, "th")
+  );
+}
+
 function filteredLeadDeals() {
   const sales = visibleSales();
   const saleSet = new Set(sales.map((sale) => sale.key));
@@ -2846,7 +2858,7 @@ function filteredLeadDeals() {
       const text = dealSearchText(deal);
       return searchTerms.every((term) => text.includes(term));
     })
-    .sort((a, b) => a.createdWeek.localeCompare(b.createdWeek) || b.amount - a.amount);
+    .sort(sortLeadByCreatedDate);
 }
 
 function renderNewLead() {
@@ -2862,7 +2874,7 @@ function renderNewLeadSummary(deals) {
   const amount = sum(deals, (deal) => deal.amount);
   const avgPerWeek = weekCount ? deals.length / weekCount : 0;
   const cards = [
-    ["Total Leads", deals.length.toLocaleString("th-TH"), `${weekLabel(state.leadStartWeek)} ถึง ${weekLabel(state.leadEndWeek)}`],
+    ["Total Leads", deals.length.toLocaleString("th-TH"), `ตั้งแต่ ${weekLabel(state.leadStartWeek)}\nถึง ${weekLabel(state.leadEndWeek)}`],
     ["Pipeline Amount", compactMoney(amount), "มูลค่า Lead ที่สร้างในช่วงนี้"],
     ["Active Sales", saleCount.toLocaleString("th-TH"), "จำนวน Sale ที่สร้าง Lead"],
     ["Avg Leads / Week", avgPerWeek.toFixed(1), "ใช้ดู consistency ในการหา lead"],
@@ -2935,7 +2947,7 @@ function renderNewLeadTable(deals) {
         </tr>
       `;
       const detailRows = weekDeals
-        .sort((a, b) => a.saleName.localeCompare(b.saleName, "th") || b.amount - a.amount)
+        .sort(sortLeadByCreatedDate)
         .slice(0, 120)
         .map(
           (deal) => `
