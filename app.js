@@ -1,4 +1,5 @@
 const STORED_DATA_KEY = "sale-performance-dashboard-workspace-v2";
+const THEME_KEY = "sale-performance-dashboard-theme";
 const initialDashboardData = JSON.parse(JSON.stringify(window.DASHBOARD_DATA || createEmptyDashboardData()));
 const storedDashboardData = loadStoredDashboardData();
 let dashboardData = storedDashboardData || JSON.parse(JSON.stringify(initialDashboardData));
@@ -13,8 +14,8 @@ const state = {
   periodWeek: "2026-W20",
   startMonth: "2026-01",
   endMonth: "2026-12",
-  leadStartWeek: "2026-W23",
-  leadEndWeek: "2026-W26",
+  leadStartWeek: previousIsoWeekKey(),
+  leadEndWeek: isoWeekKeyFromDate(localIsoDate()),
   leadSearch: "",
   category: "all",
   showUnmapped: false,
@@ -123,6 +124,7 @@ function emptyQuality() {
 
 const els = {
   metaBox: document.querySelector("#metaBox"),
+  themeToggleButton: null,
   settingsModal: document.querySelector("#settingsModal"),
   closeSettings: document.querySelector("#closeSettings"),
   dealModal: document.querySelector("#dealModal"),
@@ -713,6 +715,12 @@ function isoWeekKeyFromDate(value) {
   return `${isoYear}-W${String(week).padStart(2, "0")}`;
 }
 
+function previousIsoWeekKey(value = localIsoDate()) {
+  const parts = parseDateValue(value);
+  if (!parts) return "";
+  return isoWeekKeyFromDate(makeDateParts(dateToIso(new Date(parts.ts - 7 * 86400000))));
+}
+
 function weeksInIsoYear(year) {
   return Number(isoWeekKeyFromDate(`${year}-12-28`).slice(6));
 }
@@ -904,6 +912,7 @@ function riskTotals(deals) {
 }
 
 function initFilters() {
+  initTheme();
   renderPeriodOptions();
   renderGroupOptions();
   renderSaleOptions();
@@ -1140,8 +1149,10 @@ function renderPeriodOptions() {
   const leadOptions = leadWeeks.map((week) => `<option value="${week.value}">${escapeHtml(week.label)}</option>`).join("");
   els.leadStartWeek.innerHTML = leadOptions;
   els.leadEndWeek.innerHTML = leadOptions;
-  if (!leadWeeks.some((week) => week.value === state.leadStartWeek)) state.leadStartWeek = leadWeeks.find((week) => week.value === "2026-W23")?.value || leadWeeks[0]?.value || "2026-W01";
-  if (!leadWeeks.some((week) => week.value === state.leadEndWeek)) state.leadEndWeek = leadWeeks.find((week) => week.value === "2026-W26")?.value || leadWeeks[leadWeeks.length - 1]?.value || state.leadStartWeek;
+  const previousWeek = previousIsoWeekKey();
+  const currentWeek = isoWeekKeyFromDate(localIsoDate());
+  if (!leadWeeks.some((week) => week.value === state.leadStartWeek)) state.leadStartWeek = leadWeeks.find((week) => week.value === previousWeek)?.value || leadWeeks[0]?.value || "2026-W01";
+  if (!leadWeeks.some((week) => week.value === state.leadEndWeek)) state.leadEndWeek = leadWeeks.find((week) => week.value === currentWeek)?.value || leadWeeks[leadWeeks.length - 1]?.value || state.leadStartWeek;
   if (state.leadStartWeek > state.leadEndWeek) state.leadEndWeek = state.leadStartWeek;
   els.leadStartWeek.value = state.leadStartWeek;
   els.leadEndWeek.value = state.leadEndWeek;
@@ -1472,6 +1483,7 @@ function renderMeta() {
     dateStyle: "medium",
     timeStyle: "short",
   });
+  const isDark = document.documentElement.dataset.theme === "dark";
   els.metaBox.innerHTML = `
     <button type="button" class="settings-button" id="openSettings" aria-label="Open settings">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1479,11 +1491,45 @@ function renderMeta() {
         <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.05.05a2.1 2.1 0 1 1-2.97 2.97l-.05-.05a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65V21.4a2.1 2.1 0 1 1-4.2 0v-.08A1.8 1.8 0 0 0 8.43 19.7a1.8 1.8 0 0 0-1.98.36l-.05.05a2.1 2.1 0 1 1-2.97-2.97l.05-.05a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.09H2.1a2.1 2.1 0 1 1 0-4.2h.08A1.8 1.8 0 0 0 3.8 8.73a1.8 1.8 0 0 0-.36-1.98l-.05-.05A2.1 2.1 0 1 1 6.36 3.73l.05.05a1.8 1.8 0 0 0 1.98.36A1.8 1.8 0 0 0 9.48 2.5V2.1a2.1 2.1 0 1 1 4.2 0v.08a1.8 1.8 0 0 0 1.09 1.65 1.8 1.8 0 0 0 1.98-.36l.05-.05a2.1 2.1 0 1 1 2.97 2.97l-.05.05a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.09h.39a2.1 2.1 0 1 1 0 4.2h-.08A1.8 1.8 0 0 0 19.4 15Z"></path>
       </svg>
     </button>
+    <button type="button" class="theme-toggle-button" id="themeToggle" aria-label="Toggle dark mode" aria-pressed="${isDark}">
+      <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="m4.93 4.93 1.41 1.41"></path>
+        <path d="m17.66 17.66 1.41 1.41"></path>
+        <path d="M2 12h2"></path>
+        <path d="M20 12h2"></path>
+        <path d="m6.34 17.66-1.41 1.41"></path>
+        <path d="m19.07 4.93-1.41 1.41"></path>
+      </svg>
+      <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 7 7 0 1 0 20.5 14.5Z"></path>
+      </svg>
+    </button>
     <strong>As of ${escapeHtml(meta.asOfDate)}</strong><br>
     Deals: ${dashboardData.quality.dealRows.toLocaleString("th-TH")} rows<br>
     Targets: ${dashboardData.quality.targetRows.toLocaleString("th-TH")} sales<br>
     Built: ${escapeHtml(generated)}
   `;
+  els.themeToggleButton = document.querySelector("#themeToggle");
+}
+
+function setTheme(theme) {
+  const safeTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = safeTheme;
+  window.localStorage.setItem(THEME_KEY, safeTheme);
+  if (els.themeToggleButton) els.themeToggleButton.setAttribute("aria-pressed", String(safeTheme === "dark"));
+}
+
+function initTheme() {
+  const storedTheme = window.localStorage.getItem(THEME_KEY);
+  setTheme(storedTheme === "dark" ? "dark" : "light");
+  els.metaBox.addEventListener("click", (event) => {
+    const button = event.target.closest("#themeToggle");
+    if (!button) return;
+    setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  });
 }
 
 async function handleCsvRefresh() {
@@ -2120,7 +2166,7 @@ function renderKpis(scope) {
   els.kpiGrid.innerHTML = rows
     .map(
       (row) => `
-        <article class="kpi-summary-card ${row.tone}">
+        <article class="kpi-summary-card ${row.tone} ${row.categoryKey}">
           <div class="kpi-summary-head">
             <strong>${escapeHtml(row.label)}</strong>
             <span>${percent(row.achievement)}</span>
@@ -2148,6 +2194,7 @@ function kpiSummaryRow(label, category, sales, months, actualFacts) {
   const achievement = target ? actual / target : actual > 0 ? 1 : 0;
   return {
     label,
+    categoryKey: category,
     target,
     actual,
     achievement,

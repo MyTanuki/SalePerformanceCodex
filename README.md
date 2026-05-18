@@ -4,11 +4,19 @@ Static dashboard for combining deal pipeline data with Sale Target 2026.
 
 ## Open
 
-The dashboard is available locally at:
+For offline preview on Windows, double-click `start-preview.cmd` from this folder, or run:
+
+```bat
+start-preview.cmd
+```
+
+It starts a local preview server and opens:
 
 ```text
-http://127.0.0.1:4173/
+http://127.0.0.1:4174/
 ```
+
+Keep the command window open while previewing. Press `Ctrl+C` in that window to stop the server.
 
 ## Refresh Data In The UI
 
