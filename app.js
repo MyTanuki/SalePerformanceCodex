@@ -9,24 +9,25 @@ const state = {
   group: "all",
   sale: "all",
   periodType: "year",
-  periodYear: "2026",
-  periodQuarter: "2026-Q2",
-  periodWeek: "2026-W20",
-  startMonth: "2026-01",
-  endMonth: "2026-12",
+  periodYear: currentYearKey(),
+  periodQuarter: currentQuarterKey(),
+  periodMonth: currentMonthKey(),
+  startMonth: currentYearStartMonthKey(),
+  endMonth: currentMonthKey(),
   leadStartWeek: previousIsoWeekKey(localIsoDate(), 3),
   leadEndWeek: isoWeekKeyFromDate(localIsoDate()),
   leadSearch: "",
+  leadCategory: "all",
   category: "all",
   showUnmapped: false,
   search: "",
   tab: "overview",
   statusFilters: {
     won: true,
-    commit: true,
-    upside: true,
-    open: true,
-    lost: true,
+    commit: false,
+    upside: false,
+    open: false,
+    lost: false,
   },
   transactionSort: {
     key: "amount",
@@ -36,15 +37,25 @@ const state = {
     key: "status",
     dir: "asc",
   },
+  columnFilters: {
+    transaction: {},
+    allDeals: {},
+    leads: {},
+  },
 };
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const saleTypes = ["renew", "new"];
+const tableFilterSources = {
+  transaction: [],
+  allDeals: [],
+  leads: [],
+};
 const tabDescriptions = {
   overview: "แสดงภาพรวมยอดขาย โครงสร้าง New/Renew และ Top Open Opportunities เฉพาะ Deals ที่กำหนดให้นับยอดขาย",
   sales: "แสดงเฉพาะ Deals ที่กำหนดให้นับยอดขาย",
   deals: "แสดงรายละเอียดทุก Deal ในช่วงเวลาที่เลือก รวมทั้ง Deals ที่ถูกนับและไม่นับยอดขาย เพื่อใช้ตรวจสอบความคืบหน้า",
-  leads: "แสดง Leads จาก Created Date ตาม ISO Week และใช้ Global Filter ร่วมกับ Filter เฉพาะหน้า New Deals",
+  leads: "แสดง Leads จาก Created Date ตาม ISO Week โดยใช้เฉพาะ Filter ในหน้า New Deals",
   pipeline: "แสดงเฉพาะ Open Deals ที่กำหนดให้นับยอดขายและมีสัญญาณความเสี่ยงที่ควรติดตาม",
   data: "แสดงคุณภาพข้อมูล Mapping และข้อสมมติฐานที่ใช้คำนวณ Dashboard",
 };
@@ -149,6 +160,9 @@ const els = {
   clearCsvFiles: document.querySelector("#clearCsvFiles"),
   uploadStatus: document.querySelector("#uploadStatus"),
   emptyDataBanner: document.querySelector("#emptyDataBanner"),
+  dashboardFilterShell: document.querySelector(".dashboard-filter-shell"),
+  periodFilterCard: document.querySelector(".period-filter-card"),
+  leadToolbarCard: document.querySelector(".lead-toolbar-card"),
   savePipelineMatching: document.querySelector("#savePipelineMatching"),
   clearPipelineMatching: document.querySelector("#clearPipelineMatching"),
   pipelineMatchingSummary: document.querySelector("#pipelineMatchingSummary"),
@@ -156,10 +170,10 @@ const els = {
   viewMode: document.querySelector("#viewMode"),
   groupFilterContainer: document.querySelector("#groupFilterContainer"),
   salesFilterContainer: document.querySelector("#salesFilterContainer"),
-  periodType: document.querySelector("#periodType"),
+  periodTypeButtons: Array.from(document.querySelectorAll("[data-period-type]")),
   periodYear: document.querySelector("#periodYear"),
   periodQuarter: document.querySelector("#periodQuarter"),
-  periodWeek: document.querySelector("#periodWeek"),
+  periodMonth: document.querySelector("#periodMonth"),
   startMonth: document.querySelector("#startMonth"),
   endMonth: document.querySelector("#endMonth"),
   leadStartWeek: document.querySelector("#leadStartWeek"),
@@ -167,7 +181,7 @@ const els = {
   leadSearchInput: document.querySelector("#leadSearchInput"),
   periodSubYear: document.querySelector("#periodSubYear"),
   periodSubQuarter: document.querySelector("#periodSubQuarter"),
-  periodSubWeek: document.querySelector("#periodSubWeek"),
+  periodSubMonth: document.querySelector("#periodSubMonth"),
   periodSubRange: document.querySelector("#periodSubRange"),
   groupSelect: document.querySelector("#groupSelect"),
   saleSelect: document.querySelector("#saleSelect"),
@@ -630,6 +644,24 @@ function localIsoDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function currentYearKey() {
+  return localIsoDate().slice(0, 4);
+}
+
+function currentMonthKey() {
+  return localIsoDate().slice(0, 7);
+}
+
+function currentYearStartMonthKey() {
+  return `${currentYearKey()}-01`;
+}
+
+function currentQuarterKey() {
+  const month = Number(currentMonthKey().slice(5, 7));
+  const quarter = Math.max(1, Math.ceil(month / 3));
+  return `${currentYearKey()}-Q${quarter}`;
+}
+
 function normalizeSearch(value) {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -670,7 +702,6 @@ function displayDate(dateText) {
 
 function periodMonths() {
   const months = dashboardData.months || [];
-  if (state.periodType === "week") return [state.periodWeek];
   if (state.periodType === "year") {
     return months.filter((month) => month.startsWith(`${state.periodYear}-`));
   }
@@ -683,6 +714,9 @@ function periodMonths() {
       const monthNumber = Number(month.slice(5, 7));
       return monthNumber >= startMonth && monthNumber < startMonth + 3;
     });
+  }
+  if (state.periodType === "month") {
+    return months.filter((month) => month === state.periodMonth);
   }
   return months.filter((month) => month >= state.startMonth && month <= state.endMonth);
 }
@@ -747,7 +781,7 @@ function dealPeriodKey(deal, periodKey) {
 }
 
 function dealPeriodLabel(deal) {
-  const key = dealPeriodKey(deal, state.periodType === "week" ? state.periodWeek : deal.trackingMonth);
+  const key = dealPeriodKey(deal, deal.trackingMonth);
   return key ? monthLabel(key) : "-";
 }
 
@@ -815,11 +849,12 @@ function filteredDeals(scope, options = {}) {
     periodKey = null,
     countingIncluded = true,
     globalSearch = true,
+    globalCategory = true,
     statuses = null,
   } = options;
   return allDealDetails()
     .filter((deal) => itemMatchesSaleScope(deal, scope))
-    .filter((deal) => categoryMatches(deal.category))
+    .filter((deal) => !globalCategory || categoryMatches(deal.category))
     .filter((deal) => category === "state" || category === "all" || deal.category === category)
     .filter((deal) => !countingIncluded || deal.countingIncluded !== false)
     .filter((deal) => !period || dealMatchesPeriod(deal, scope, periodKey))
@@ -936,10 +971,12 @@ function initFilters() {
     renderSaleOptions();
     render();
   });
-  els.periodType.addEventListener("change", () => {
-    state.periodType = els.periodType.value;
-    renderFilterVisibility();
-    render();
+  els.periodTypeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.periodType = button.dataset.periodType;
+      renderFilterVisibility();
+      render();
+    });
   });
   els.periodYear.addEventListener("change", () => {
     state.periodYear = els.periodYear.value;
@@ -949,8 +986,8 @@ function initFilters() {
     state.periodQuarter = els.periodQuarter.value;
     render();
   });
-  els.periodWeek.addEventListener("change", () => {
-    state.periodWeek = els.periodWeek.value;
+  els.periodMonth.addEventListener("change", () => {
+    state.periodMonth = els.periodMonth.value;
     render();
   });
   els.startMonth.addEventListener("change", () => {
@@ -1008,12 +1045,20 @@ function initFilters() {
     renderSaleOptions();
     render();
   });
-  document.querySelectorAll(".segment button").forEach((button) => {
+  document.querySelectorAll(".segment button[data-category]").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".segment button").forEach((item) => item.classList.remove("active"));
+      document.querySelectorAll(".segment button[data-category]").forEach((item) => item.classList.remove("active"));
       button.classList.add("active");
       state.category = button.dataset.category;
       render();
+    });
+  });
+  document.querySelectorAll(".lead-category-segment button[data-lead-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".lead-category-segment button[data-lead-category]").forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      state.leadCategory = button.dataset.leadCategory;
+      if (state.tab === "leads") renderTablesOnly();
     });
   });
   document.querySelectorAll(".tabs button").forEach((button) => {
@@ -1083,6 +1128,16 @@ function initFilters() {
     const dealRow = event.target.closest("[data-deal-key]");
     if (dealRow) openDealModal(dealRow.dataset.dealKey);
   });
+  document.addEventListener("click", (event) => {
+    const filterButton = event.target.closest("[data-column-filter-table]");
+    if (filterButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openColumnFilter(filterButton.dataset.columnFilterTable, filterButton.dataset.columnFilterKey, filterButton);
+      return;
+    }
+    if (!event.target.closest("#columnFilterPopover")) closeColumnFilter();
+  });
   els.savePipelineMatching.addEventListener("click", savePipelineMatching);
   els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
   document.addEventListener("click", (event) => {
@@ -1128,6 +1183,7 @@ function initFilters() {
     dashboardData = JSON.parse(JSON.stringify(initialDashboardData));
     state.group = "all";
     state.sale = "all";
+    resetColumnFilters();
     renderPeriodOptions();
     renderGroupOptions();
     renderSaleOptions();
@@ -1139,29 +1195,43 @@ function initFilters() {
 }
 
 function renderPeriodOptions() {
-  const yearOptions = ["2024", "2025", "2026", "2027", "2028"];
+  const currentYear = currentYearKey();
+  const currentQuarter = currentQuarterKey();
+  const currentMonth = currentMonthKey();
+  const currentYearStart = currentYearStartMonthKey();
+  const allMonths = Array.from(new Set(dashboardData.months || [])).sort();
+  const yearOptions = Array.from(
+    new Set([
+      ...allMonths.map((month) => month.slice(0, 4)).filter(Boolean),
+      "2024",
+      "2025",
+      "2026",
+      "2027",
+      "2028",
+      currentYear,
+    ]),
+  ).sort();
   els.periodYear.innerHTML = yearOptions.map((year) => `<option value="${year}">${year}</option>`).join("");
+  if (!yearOptions.includes(state.periodYear)) state.periodYear = yearOptions.includes(currentYear) ? currentYear : yearOptions[0] || currentYear;
   els.periodYear.value = state.periodYear;
 
   const quarterOptions = [];
-  for (let year = 2026; year <= 2028; year += 1) {
+  yearOptions.forEach((year) => {
     for (let quarter = 1; quarter <= 4; quarter += 1) {
       quarterOptions.push({ value: `${year}-Q${quarter}`, label: `${ordinalQuarter(quarter)} ${year}` });
     }
-  }
+  });
   els.periodQuarter.innerHTML = quarterOptions.map((quarter) => `<option value="${quarter.value}">${quarter.label}</option>`).join("");
+  if (!quarterOptions.some((quarter) => quarter.value === state.periodQuarter)) {
+    state.periodQuarter = quarterOptions.some((quarter) => quarter.value === currentQuarter) ? currentQuarter : quarterOptions[0]?.value || currentQuarter;
+  }
   els.periodQuarter.value = state.periodQuarter;
 
-  const weekOptions = [];
-  for (let year = 2026; year <= 2028; year += 1) {
-    for (let week = 1; week <= weeksInIsoYear(year); week += 1) {
-      const value = `${year}-W${String(week).padStart(2, "0")}`;
-      weekOptions.push({ value, label: weekLabel(value) });
-    }
-  }
-  els.periodWeek.innerHTML = weekOptions.map((week) => `<option value="${week.value}">${escapeHtml(week.label)}</option>`).join("");
-  if (!weekOptions.some((week) => week.value === state.periodWeek)) state.periodWeek = weekOptions[0]?.value || "2026-W01";
-  els.periodWeek.value = state.periodWeek;
+  const monthOptions = allMonths.length ? allMonths : [currentMonth];
+  const monthOptionHtml = monthOptions.map((month) => `<option value="${month}">${monthLabel(month)}</option>`).join("");
+  els.periodMonth.innerHTML = monthOptionHtml;
+  if (!monthOptions.includes(state.periodMonth)) state.periodMonth = monthOptions.includes(currentMonth) ? currentMonth : monthOptions[0] || currentMonth;
+  els.periodMonth.value = state.periodMonth;
 
   const leadWeeks = leadWeekOptions();
   const leadOptions = leadWeeks.map((week) => `<option value="${week.value}">${escapeHtml(week.label)}</option>`).join("");
@@ -1175,12 +1245,16 @@ function renderPeriodOptions() {
   els.leadStartWeek.value = state.leadStartWeek;
   els.leadEndWeek.value = state.leadEndWeek;
 
-  const rangeMonths = (dashboardData.months || []).filter((month) => month >= "2026-01" && month <= "2028-12");
-  const rangeOptions = rangeMonths.map((month) => `<option value="${month}">${monthLabel(month)}</option>`).join("");
-  els.startMonth.innerHTML = rangeOptions;
-  els.endMonth.innerHTML = rangeOptions;
-  if (!rangeMonths.includes(state.startMonth)) state.startMonth = rangeMonths[0] || "2026-01";
-  if (!rangeMonths.includes(state.endMonth)) state.endMonth = rangeMonths[rangeMonths.length - 1] || "2026-12";
+  els.startMonth.innerHTML = monthOptionHtml;
+  els.endMonth.innerHTML = monthOptionHtml;
+  if (!monthOptions.includes(state.startMonth)) {
+    state.startMonth = monthOptions.includes(currentYearStart) ? currentYearStart : monthOptions.find((month) => month.startsWith(`${currentYear}-`)) || monthOptions[0] || currentYearStart;
+  }
+  if (!monthOptions.includes(state.endMonth)) {
+    const currentOrEarlierMonth = monthOptions.filter((month) => month <= currentMonth).pop();
+    state.endMonth = monthOptions.includes(currentMonth) ? currentMonth : currentOrEarlierMonth || monthOptions[monthOptions.length - 1] || currentMonth;
+  }
+  if (state.startMonth > state.endMonth) state.startMonth = state.endMonth;
   els.startMonth.value = state.startMonth;
   els.endMonth.value = state.endMonth;
 }
@@ -1211,12 +1285,16 @@ function ordinalQuarter(quarter) {
 
 function renderFilterVisibility() {
   els.viewMode.value = state.viewMode;
-  els.periodType.value = state.periodType;
+  els.periodTypeButtons.forEach((button) => {
+    const active = button.dataset.periodType === state.periodType;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
   els.groupFilterContainer.hidden = false;
   els.salesFilterContainer.hidden = false;
   els.periodSubYear.hidden = state.periodType !== "year";
   els.periodSubQuarter.hidden = state.periodType !== "quarter";
-  els.periodSubWeek.hidden = state.periodType !== "week";
+  els.periodSubMonth.hidden = state.periodType !== "month";
   els.periodSubRange.hidden = state.periodType !== "range";
 }
 
@@ -1565,10 +1643,11 @@ async function handleCsvRefresh() {
     storeDashboardData(dashboardData);
     state.group = "all";
     state.sale = "all";
-  state.search = "";
-  state.leadSearch = "";
-  els.searchInput.value = "";
-  els.leadSearchInput.value = "";
+    state.search = "";
+    state.leadSearch = "";
+    els.searchInput.value = "";
+    els.leadSearchInput.value = "";
+    resetColumnFilters();
     renderPeriodOptions();
     renderGroupOptions();
     renderSaleOptions();
@@ -2183,7 +2262,7 @@ function periodLabel() {
     const [year, quarter] = state.periodQuarter.split("-Q");
     return `${ordinalQuarter(Number(quarter))} ${year}`;
   }
-  if (state.periodType === "week") return weekLabel(state.periodWeek);
+  if (state.periodType === "month") return monthLabel(state.periodMonth);
   return `${monthLabel(state.startMonth)} - ${monthLabel(state.endMonth)}`;
 }
 
@@ -2609,10 +2688,12 @@ function renderCumulativePerformanceChart(scope) {
 function renderTransactionTable(scope) {
   const andTerms = els.transactionAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const notTerms = els.transactionNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
-  const rows = filteredPerformanceDeals(scope, "all")
+  const baseRows = filteredPerformanceDeals(scope, "all")
     .filter((deal) => categoryMatches(deal.category))
     .filter((deal) => state.statusFilters[performanceBucket(deal)])
     .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms));
+  tableFilterSources.transaction = baseRows;
+  const rows = applyColumnFilters("transaction", baseRows);
   sortTransactionRows(rows);
   els.transactionTotalAmount.textContent = money(sum(rows, (row) => row.amount));
   els.transactionTable.innerHTML = transactionTable(rows.slice(0, 500));
@@ -2626,10 +2707,159 @@ function dealMatchesAndNotTerms(deal, andTerms, notTerms) {
   return true;
 }
 
+function applyColumnFilters(tableKey, rows) {
+  const filters = state.columnFilters[tableKey] || {};
+  const activeEntries = Object.entries(filters).filter(([, values]) => Array.isArray(values));
+  if (!activeEntries.length) return rows;
+  return rows.filter((row) =>
+    activeEntries.every(([key, values]) => values.includes(columnFilterValue(row, key))),
+  );
+}
+
+function columnFilterValue(deal, key) {
+  if (key === "company" || key === "companyDeal") return cleanText(`${deal.company || "-"} / ${deal.dealName || deal.id || "-"}`);
+  if (key === "status") return statusLabel(deal.status || performanceBucket(deal));
+  if (key === "risk") return riskFilterLabel(deal);
+  if (key === "countingStatus") return deal.countingLabel || countingStatusLabel(deal.countingStatus);
+  if (key === "amount") return money(deal.amount || 0);
+  if (key === "forecastAmount") return money(deal.forecastAmount || 0);
+  if (key === "expectedDate") return displayDate(deal.expectedDate);
+  if (key === "stageChangeDate") return displayDate(deal.stageChangeDate);
+  if (key === "createdDate") return displayDate(deal.createdDate);
+  if (key === "saleName") return cleanText(deal.saleName || deal.responsible || "-");
+  return cleanText(deal[key] ?? "-") || "-";
+}
+
+function countingStatusLabel(status) {
+  if (status === "excluded") return "Excluded";
+  if (status === "unmapped") return "Unmapped";
+  return "Included";
+}
+
+function riskFilterLabel(deal) {
+  if (deal.status !== "open") return statusLabel(deal.status);
+  const labels = [];
+  if (deal.risk?.overdue) labels.push("Overdue");
+  if (deal.risk?.noExpected) labels.push("No Expected Date");
+  if (deal.risk?.stale30) labels.push("Stale > 30 days");
+  if (deal.risk?.notContacted) labels.push("Not Contacted");
+  return labels.length ? labels.join(", ") : "No Risk";
+}
+
+function columnFilterButton(tableKey, key) {
+  const active = Array.isArray(state.columnFilters[tableKey]?.[key]);
+  return `<button type="button" class="column-filter-button${active ? " active" : ""}" data-column-filter-table="${escapeHtml(tableKey)}" data-column-filter-key="${escapeHtml(key)}" title="Filter column">▾</button>`;
+}
+
+function columnFilterOptions(tableKey, key) {
+  const counts = new Map();
+  (tableFilterSources[tableKey] || []).forEach((row) => {
+    const value = columnFilterValue(row, key);
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([value, count]) => ({ value, label: value || "-", count }))
+    .sort((a, b) => a.label.localeCompare(b.label, "th", { numeric: true }));
+}
+
+function openColumnFilter(tableKey, key, anchor) {
+  const options = columnFilterOptions(tableKey, key);
+  const popover = ensureColumnFilterPopover();
+  const saved = state.columnFilters[tableKey]?.[key];
+  const selected = new Set(Array.isArray(saved) ? saved : options.map((option) => option.value));
+  popover.innerHTML = `
+    <div class="column-filter-title">เลือกข้อมูลที่ต้องการแสดง</div>
+    <div class="column-filter-actions">
+      <button type="button" data-column-filter-all>All</button>
+      <button type="button" data-column-filter-none>None</button>
+      <button type="button" data-column-filter-clear>Clear Filter</button>
+    </div>
+    <div class="column-filter-options">
+      ${
+        options.length
+          ? options
+              .map(
+                (option) => `
+                  <label class="column-filter-option">
+                    <input type="checkbox" value="${escapeHtml(option.value)}" ${selected.has(option.value) ? "checked" : ""} />
+                    <span>${escapeHtml(option.label)}</span>
+                    <small>${option.count.toLocaleString("th-TH")}</small>
+                  </label>
+                `,
+              )
+              .join("")
+          : `<div class="column-filter-empty">ไม่มีข้อมูลให้เลือก</div>`
+      }
+    </div>
+    <div class="column-filter-footer">
+      <button type="button" class="secondary-button" data-column-filter-close>Close</button>
+      <button type="button" class="primary-button highlight-button" data-column-filter-apply>Apply</button>
+    </div>
+  `;
+  popover.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  const width = 300;
+  popover.style.left = `${Math.min(window.innerWidth - width - 12, Math.max(12, rect.left))}px`;
+  popover.style.top = `${Math.min(window.innerHeight - 80, rect.bottom + 6)}px`;
+  popover.dataset.tableKey = tableKey;
+  popover.dataset.columnKey = key;
+
+  popover.querySelector("[data-column-filter-all]")?.addEventListener("click", () => {
+    popover.querySelectorAll(".column-filter-option input").forEach((input) => {
+      input.checked = true;
+    });
+  });
+  popover.querySelector("[data-column-filter-none]")?.addEventListener("click", () => {
+    popover.querySelectorAll(".column-filter-option input").forEach((input) => {
+      input.checked = false;
+    });
+  });
+  popover.querySelector("[data-column-filter-clear]")?.addEventListener("click", () => {
+    delete state.columnFilters[tableKey][key];
+    closeColumnFilter();
+    renderTablesOnly();
+  });
+  popover.querySelector("[data-column-filter-close]")?.addEventListener("click", closeColumnFilter);
+  popover.querySelector("[data-column-filter-apply]")?.addEventListener("click", () => {
+    const checked = Array.from(popover.querySelectorAll(".column-filter-option input:checked")).map((input) => input.value);
+    if (checked.length === options.length) {
+      delete state.columnFilters[tableKey][key];
+    } else {
+      state.columnFilters[tableKey][key] = checked;
+    }
+    closeColumnFilter();
+    renderTablesOnly();
+  });
+}
+
+function ensureColumnFilterPopover() {
+  let popover = document.querySelector("#columnFilterPopover");
+  if (!popover) {
+    popover = document.createElement("div");
+    popover.id = "columnFilterPopover";
+    popover.className = "column-filter-popover";
+    popover.hidden = true;
+    document.body.appendChild(popover);
+  }
+  return popover;
+}
+
+function closeColumnFilter() {
+  const popover = document.querySelector("#columnFilterPopover");
+  if (popover) popover.hidden = true;
+}
+
+function resetColumnFilters() {
+  state.columnFilters = { transaction: {}, allDeals: {}, leads: {} };
+  closeColumnFilter();
+}
+
 function transactionSearchText(deal) {
   const expectedCloseDate = displayDate(deal.expectedDate);
+  const counting = countingSearchValues(deal).join(" ");
+  const risk = riskFilterLabel(deal);
   return normalizeSearch(
-    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.dealType || ""} ${deal.product} ${deal.category} ${performanceBucket(deal)} ${deal.expectedDate || ""} ${expectedCloseDate}`,
+    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product} ${deal.category} ${performanceBucket(deal)} ${deal.status || ""} ${counting} ${risk} ${deal.expectedDate || ""} ${expectedCloseDate} ${deal.stageChangeDate || ""}`,
   );
 }
 
@@ -2644,11 +2874,16 @@ function transactionSearchTokens(deal) {
       deal.dealName,
       deal.pipeline,
       deal.stage,
+      deal.rawStage,
       deal.dealType,
       deal.product,
       deal.category,
+      deal.status,
+      ...countingSearchValues(deal),
+      riskFilterLabel(deal),
       deal.expectedDate,
       expectedCloseDate,
+      deal.stageChangeDate,
       performanceBucket(deal),
     ]
       .map(normalizeSearch)
@@ -2657,7 +2892,18 @@ function transactionSearchTokens(deal) {
   );
 }
 
+function countingSearchValues(deal) {
+  const status = deal.countingStatus || (deal.countingIncluded === false ? "excluded" : "included");
+  const label = deal.countingLabel || countingStatusLabel(status);
+  const values = [status, label, countingStatusLabel(status)];
+  if (status === "excluded") values.push("not included", "not counted", "ไม่นับยอด");
+  if (status === "included") values.push("counted", "นับยอด");
+  if (status === "unmapped") values.push("no mapping", "unmapped rule");
+  return values.filter(Boolean);
+}
+
 function transactionTermMatches(term, text, tokens) {
+  if (term.startsWith("not ")) return transactionTermMatches(term.slice(4).trim(), text, tokens);
   if (term === "new" || term === "renew") return tokens.has(term);
   return text.includes(term);
 }
@@ -2673,7 +2919,6 @@ function sortTransactionRows(rows) {
 }
 
 function transactionTable(rows) {
-  if (!rows.length) return `<div class="empty">ไม่มี Transaction ที่ตรงกับเงื่อนไข</div>`;
   return `
     <table class="transaction-table">
       <thead>
@@ -2688,21 +2933,25 @@ function transactionTable(rows) {
         </tr>
       </thead>
       <tbody>
-        ${rows
-          .map(
-            (deal) => `
-              <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
-                <td class="tx-id-col">${escapeHtml(deal.id || "-")}</td>
-                <td class="tx-sale-col"><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
-                <td class="company-cell tx-company-col"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
-                <td class="tx-type-col">${escapeHtml(deal.category)}</td>
-                <td class="tx-stage-col"><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span><br>${stageBucketBadge(performanceBucket(deal))}</td>
-                <td class="tx-expected-col">${escapeHtml(displayDate(deal.expectedDate))}</td>
-                <td class="num tx-amount-col">${money(deal.amount)}</td>
-              </tr>
-            `,
-          )
-          .join("")}
+        ${
+          rows.length
+            ? rows
+                .map(
+                  (deal) => `
+                    <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
+                      <td class="tx-id-col">${escapeHtml(deal.id || "-")}</td>
+                      <td class="tx-sale-col"><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
+                      <td class="company-cell tx-company-col"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
+                      <td class="tx-type-col">${escapeHtml(deal.category)}</td>
+                      <td class="tx-stage-col"><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span><br>${stageBucketBadge(performanceBucket(deal))}</td>
+                      <td class="tx-expected-col">${escapeHtml(displayDate(deal.expectedDate))}</td>
+                      <td class="num tx-amount-col">${money(deal.amount)}</td>
+                    </tr>
+                  `,
+                )
+                .join("")
+            : `<tr><td colspan="7"><div class="empty">ไม่มี Transaction ที่ตรงกับเงื่อนไข</div></td></tr>`
+        }
       </tbody>
     </table>
   `;
@@ -2712,14 +2961,16 @@ function transactionHeader(key, label, numeric = false, extraClass = "") {
   const active = state.transactionSort.key === key;
   const icon = active ? (state.transactionSort.dir === "asc" ? "↑" : "↓") : "↕";
   const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
-  return `<th class="${className}"><button type="button" class="sort-button" data-transaction-sort="${key}">${escapeHtml(label)} ${icon}</button></th>`;
+  return `<th class="${className}"><div class="table-header-tools"><button type="button" class="sort-button" data-transaction-sort="${key}">${escapeHtml(label)} ${icon}</button>${columnFilterButton("transaction", key)}</div></th>`;
 }
 
 function renderDealDetailTable(scope) {
   const andTerms = els.allDealsAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const notTerms = els.allDealsNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
-  const rows = filteredDeals(scope, { countingIncluded: false })
+  const baseRows = filteredDeals(scope, { countingIncluded: false })
     .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms));
+  tableFilterSources.allDeals = baseRows;
+  const rows = applyColumnFilters("allDeals", baseRows);
   sortDealDetailRows(rows);
   const visibleRows = rows.slice(0, 300);
 
@@ -2753,7 +3004,6 @@ function sortDealDetailRows(rows) {
 }
 
 function dealDetailTable(rows, emptyText) {
-  if (!rows.length) return `<div class="empty">${escapeHtml(emptyText)}</div>`;
   return `
     <table>
       <thead>
@@ -2774,27 +3024,31 @@ function dealDetailTable(rows, emptyText) {
         </tr>
       </thead>
       <tbody>
-        ${rows
-          .map(
-            (deal) => `
-              <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
-                <td>${escapeHtml(deal.id || "-")}</td>
-                <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.responsible)}</span></td>
-                <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
-                <td>${statusBadge(deal.status)}</td>
-                <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
-                <td>${escapeHtml(deal.pipeline)}${deal.pipelineGroup && !deal.pipelineGroupMatch ? `<br><span class="badge warn">${escapeHtml(deal.pipelineGroup)}</span>` : ""}</td>
-                <td>${countingBadge(deal)}</td>
-                <td>${escapeHtml(deal.product)}</td>
-                <td class="num">${money(deal.amount)}</td>
-                <td class="num">${money(deal.forecastAmount || 0)}</td>
-                <td>${escapeHtml(deal.expectedDate || "-")}</td>
-                <td>${escapeHtml(deal.stageChangeDate || "-")}<br><span class="muted">${deal.stageAgeDays ?? "-"} stage days</span></td>
-                <td>${deal.status === "open" ? riskBadges(deal) : progressBadge(deal.status)}</td>
-              </tr>
-            `,
-          )
-          .join("")}
+        ${
+          rows.length
+            ? rows
+                .map(
+                  (deal) => `
+                    <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
+                      <td>${escapeHtml(deal.id || "-")}</td>
+                      <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.responsible)}</span></td>
+                      <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || "-")}</span></td>
+                      <td>${statusBadge(deal.status)}</td>
+                      <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
+                      <td>${escapeHtml(deal.pipeline)}${deal.pipelineGroup && !deal.pipelineGroupMatch ? `<br><span class="badge warn">${escapeHtml(deal.pipelineGroup)}</span>` : ""}</td>
+                      <td>${countingBadge(deal)}</td>
+                      <td>${escapeHtml(deal.product)}</td>
+                      <td class="num">${money(deal.amount)}</td>
+                      <td class="num">${money(deal.forecastAmount || 0)}</td>
+                      <td>${escapeHtml(deal.expectedDate || "-")}</td>
+                      <td>${escapeHtml(deal.stageChangeDate || "-")}<br><span class="muted">${deal.stageAgeDays ?? "-"} stage days</span></td>
+                      <td>${deal.status === "open" ? riskBadges(deal) : progressBadge(deal.status)}</td>
+                    </tr>
+                  `,
+                )
+                .join("")
+            : `<tr><td colspan="13"><div class="empty">${escapeHtml(emptyText)}</div></td></tr>`
+        }
       </tbody>
     </table>
   `;
@@ -2804,7 +3058,7 @@ function dealDetailHeader(key, label, numeric = false, extraClass = "") {
   const active = state.dealDetailSort.key === key;
   const icon = active ? (state.dealDetailSort.dir === "asc" ? "↑" : "↓") : "↕";
   const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
-  return `<th class="${className}"><button type="button" class="sort-button" data-deal-detail-sort="${key}">${escapeHtml(label)} ${icon}</button></th>`;
+  return `<th class="${className}"><div class="table-header-tools"><button type="button" class="sort-button" data-deal-detail-sort="${key}">${escapeHtml(label)} ${icon}</button>${columnFilterButton("allDeals", key)}</div></th>`;
 }
 
 function leadCreatedWeek(deal) {
@@ -2824,12 +3078,9 @@ function sortLeadByCreatedDate(a, b) {
 }
 
 function filteredLeadDeals() {
-  const sales = visibleSales();
-  const saleSet = new Set(sales.map((sale) => sale.key));
-  const selectedSale = selectedSaleRecord();
-  const scope = { saleSet, selectedSale, months: [], monthSet: new Set() };
+  const scope = calcScope();
   const searchTerms = [state.search, state.leadSearch].map(normalizeSearch).filter(Boolean);
-  return filteredDeals(scope, { period: false, globalSearch: false })
+  return filteredDeals(scope, { category: state.leadCategory, period: false, globalSearch: false, globalCategory: false })
     .map((deal) => ({ ...deal, createdWeek: leadCreatedWeek(deal) }))
     .filter((deal) => deal.createdWeek && deal.createdWeek >= state.leadStartWeek && deal.createdWeek <= state.leadEndWeek)
     .filter((deal) => {
@@ -2908,61 +3159,67 @@ function renderNewLeadWeeklyChart(deals) {
 }
 
 function renderNewLeadTable(deals) {
-  if (!deals.length) {
-    els.newLeadTable.innerHTML = `<div class="empty">ไม่มี Lead ในช่วง Week ที่เลือก</div>`;
-    return;
+  tableFilterSources.leads = deals;
+  const tableDeals = applyColumnFilters("leads", deals);
+  let rowsHtml = `<tr><td colspan="8"><div class="empty">ไม่มี Lead ในช่วง Week ที่เลือก</div></td></tr>`;
+  if (tableDeals.length) {
+    const grouped = new Map();
+    tableDeals.forEach((deal) => {
+      if (!grouped.has(deal.createdWeek)) grouped.set(deal.createdWeek, []);
+      grouped.get(deal.createdWeek).push(deal);
+    });
+    rowsHtml = Array.from(grouped.entries())
+      .map(([week, weekDeals]) => {
+        const totalAmount = sum(weekDeals, (deal) => deal.amount);
+        const groupHeader = `
+          <tr class="week-group-row">
+            <td colspan="8"><strong>${escapeHtml(weekLabel(week))}</strong><span>${weekDeals.length.toLocaleString("th-TH")} leads · ${compactMoney(totalAmount)}</span></td>
+          </tr>
+        `;
+        const detailRows = weekDeals
+          .sort(sortLeadByCreatedDate)
+          .slice(0, 120)
+          .map(
+            (deal) => `
+              <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
+                <td>${escapeHtml(deal.createdDate || "-")}</td>
+                <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
+                <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || `ID ${deal.id}`)}</span></td>
+                <td>${escapeHtml(deal.category)}</td>
+                <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
+                <td>${escapeHtml(deal.pipeline || "-")}</td>
+                <td class="num">${money(deal.amount)}</td>
+                <td>${deal.status === "open" ? riskBadges(deal) : progressBadge(deal.status)}</td>
+              </tr>
+            `,
+          )
+          .join("");
+        return groupHeader + detailRows;
+      })
+      .join("");
   }
-  const grouped = new Map();
-  deals.forEach((deal) => {
-    if (!grouped.has(deal.createdWeek)) grouped.set(deal.createdWeek, []);
-    grouped.get(deal.createdWeek).push(deal);
-  });
-  const rowsHtml = Array.from(grouped.entries())
-    .map(([week, weekDeals]) => {
-      const totalAmount = sum(weekDeals, (deal) => deal.amount);
-      const groupHeader = `
-        <tr class="week-group-row">
-          <td colspan="8"><strong>${escapeHtml(weekLabel(week))}</strong><span>${weekDeals.length.toLocaleString("th-TH")} leads · ${compactMoney(totalAmount)}</span></td>
-        </tr>
-      `;
-      const detailRows = weekDeals
-        .sort(sortLeadByCreatedDate)
-        .slice(0, 120)
-        .map(
-          (deal) => `
-            <tr class="clickable-row" data-deal-key="${escapeHtml(dealDetailKey(deal))}">
-              <td>${escapeHtml(deal.createdDate || "-")}</td>
-              <td><strong>${escapeHtml(deal.saleName)}</strong><br><span class="muted">${escapeHtml(deal.group)}</span></td>
-              <td class="company-cell"><strong>${escapeHtml(deal.company || "-")}</strong><br><span class="muted">${escapeHtml(deal.dealName || `ID ${deal.id}`)}</span></td>
-              <td>${escapeHtml(deal.category)}</td>
-              <td><strong>${escapeHtml(deal.stage)}</strong><br><span class="muted">DB: ${escapeHtml(deal.rawStage || deal.stage)}</span></td>
-              <td>${escapeHtml(deal.pipeline || "-")}</td>
-              <td class="num">${money(deal.amount)}</td>
-              <td>${deal.status === "open" ? riskBadges(deal) : progressBadge(deal.status)}</td>
-            </tr>
-          `,
-        )
-        .join("");
-      return groupHeader + detailRows;
-    })
-    .join("");
   els.newLeadTable.innerHTML = `
     <table>
       <thead>
         <tr>
-          <th>Created</th>
-          <th>Sale</th>
-          <th class="company-cell">Company / Deal</th>
-          <th>Type</th>
-          <th>Matched Stage</th>
-          <th>Pipeline</th>
-          <th class="num">Amount</th>
-          <th>Risk / Progress</th>
+          ${leadHeader("createdDate", "Created")}
+          ${leadHeader("saleName", "Sale")}
+          ${leadHeader("companyDeal", "Company / Deal", false, "company-cell")}
+          ${leadHeader("category", "Type")}
+          ${leadHeader("stage", "Matched Stage")}
+          ${leadHeader("pipeline", "Pipeline")}
+          ${leadHeader("amount", "Amount", true)}
+          ${leadHeader("risk", "Risk / Progress")}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>
   `;
+}
+
+function leadHeader(key, label, numeric = false, extraClass = "") {
+  const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
+  return `<th class="${className}"><div class="table-header-tools"><span>${escapeHtml(label)}</span>${columnFilterButton("leads", key)}</div></th>`;
 }
 
 function dealDetailKey(deal) {
@@ -3239,13 +3496,22 @@ function renderTablesOnly() {
 }
 
 function renderTabDescription() {
+  const isLeadsTab = state.tab === "leads";
+  const hideKpiTabs = new Set(["deals", "pipeline", "data", "leads"]);
+  document.body.classList.toggle("is-leads-tab", isLeadsTab);
+  if (els.dashboardFilterShell) els.dashboardFilterShell.hidden = false;
+  if (els.periodFilterCard) els.periodFilterCard.hidden = isLeadsTab;
+  if (els.leadToolbarCard) els.leadToolbarCard.hidden = !isLeadsTab;
+  if (els.emptyDataBanner) els.emptyDataBanner.hidden = isLeadsTab || hasDealData();
+  if (els.kpiGrid) els.kpiGrid.hidden = hideKpiTabs.has(state.tab);
   if (!els.tabDescription) return;
+  els.tabDescription.hidden = false;
   els.tabDescription.textContent = tabDescriptions[state.tab] || "";
 }
 
 function render() {
   const scope = calcScope();
-  els.emptyDataBanner.hidden = hasDealData();
+  renderTabDescription();
   renderMeta();
   renderKpis(scope);
   renderMonthlyChart(scope);

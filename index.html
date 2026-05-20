@@ -19,6 +19,16 @@
         <div class="meta" id="metaBox"></div>
       </header>
 
+      <nav class="tabs" aria-label="Dashboard tabs">
+        <button type="button" class="active" data-tab="overview">Overview</button>
+        <button type="button" data-tab="sales">Sales Performance</button>
+        <button type="button" data-tab="deals">All Deals</button>
+        <button type="button" data-tab="pipeline">Pipeline Risk</button>
+        <button type="button" data-tab="data">Data Quality</button>
+        <button type="button" data-tab="leads">New Deals</button>
+      </nav>
+      <p class="tab-description" id="tabDescription">แสดงภาพรวมยอดขายและโอกาสขายที่ผ่านกติกาการนับยอดขาย</p>
+
       <div class="modal-backdrop" id="settingsModal" hidden>
         <section class="settings-modal" role="dialog" aria-modal="true" aria-label="ตั้งค่า Dashboard">
           <div class="modal-head">
@@ -81,7 +91,7 @@
       </div>
 
       <section class="toolbar dashboard-filter-shell" aria-label="Dashboard filters">
-        <article class="filter-card">
+        <article class="filter-card view-filter-card">
           <div class="filter-card-head">
             <h2>Filter มุมมอง</h2>
           </div>
@@ -108,37 +118,41 @@
           </div>
         </article>
 
-        <article class="filter-card">
+        <article class="filter-card period-filter-card">
           <div class="filter-card-head">
             <h2>Filter ช่วงเวลา</h2>
-            <label class="check">
-              <input id="showUnmapped" type="checkbox" />
-              รวม No Target
-            </label>
+            <div class="filter-head-actions">
+              <label class="check">
+                <input id="showUnmapped" type="checkbox" />
+                รวม No Target
+              </label>
+              <div class="segment compact-segment" aria-label="Target category">
+                <button type="button" class="active" data-category="all">รวม</button>
+                <button type="button" data-category="new">New</button>
+                <button type="button" data-category="renew">Renew</button>
+              </div>
+            </div>
           </div>
           <div class="filter-grid period-filter-grid">
-            <label>
-              ช่วงเวลา
-              <select id="periodType">
-                <option value="year">Year</option>
-                <option value="quarter">Quarter</option>
-                <option value="week">Week</option>
-                <option value="range">Range</option>
-              </select>
-            </label>
-            <label id="periodSubYear">
-              เลือกปี
-              <select id="periodYear"></select>
-            </label>
-            <label id="periodSubQuarter" hidden>
-              เลือกไตรมาส
-              <select id="periodQuarter"></select>
-            </label>
-            <label id="periodSubWeek" hidden>
-              เลือก ISO Week
-              <select id="periodWeek"></select>
-            </label>
-            <div class="period-range-row">
+            <div class="period-type-tabs" role="tablist" aria-label="เลือกช่วงเวลา">
+              <button type="button" class="active" data-period-type="year" role="tab" aria-selected="true">Year</button>
+              <button type="button" data-period-type="quarter" role="tab" aria-selected="false">Quarter</button>
+              <button type="button" data-period-type="month" role="tab" aria-selected="false">Month</button>
+              <button type="button" data-period-type="range" role="tab" aria-selected="false">Range</button>
+            </div>
+            <div class="period-picker-row">
+              <label id="periodSubYear">
+                เลือกปี
+                <select id="periodYear"></select>
+              </label>
+              <label id="periodSubQuarter" hidden>
+                เลือกไตรมาส
+                <select id="periodQuarter"></select>
+              </label>
+              <label id="periodSubMonth" hidden>
+                เลือกเดือน
+                <select id="periodMonth"></select>
+              </label>
               <div id="periodSubRange" class="range-fields" hidden>
                 <label>
                   ตั้งแต่เดือน
@@ -149,10 +163,33 @@
                   <select id="endMonth"></select>
                 </label>
               </div>
-              <div class="segment compact-segment" aria-label="Target category">
-                <button type="button" class="active" data-category="all">รวม</button>
-                <button type="button" data-category="new">New</button>
-                <button type="button" data-category="renew">Renew</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="filter-card lead-toolbar-card" hidden>
+          <div class="filter-card-head">
+            <h2>New Deals by ISO Week</h2>
+          </div>
+          <div class="lead-filter-grid">
+            <label>
+              ตั้งแต่ Week
+              <select id="leadStartWeek"></select>
+            </label>
+            <label>
+              ถึง Week
+              <select id="leadEndWeek"></select>
+            </label>
+            <label>
+              ค้นหา Lead
+              <input id="leadSearchInput" type="search" placeholder="Sale, บริษัท, ดีล, Stage, Pipeline" />
+            </label>
+            <div class="lead-category-filter" aria-label="New Deals category">
+              <span>ประเภท</span>
+              <div class="segment lead-category-segment">
+                <button type="button" class="active" data-lead-category="all">รวม</button>
+                <button type="button" data-lead-category="new">New</button>
+                <button type="button" data-lead-category="renew">Renew</button>
               </div>
             </div>
           </div>
@@ -165,16 +202,6 @@
       </section>
 
       <section class="kpi-grid" id="kpiGrid" aria-label="KPI summary"></section>
-
-      <nav class="tabs" aria-label="Dashboard tabs">
-        <button type="button" class="active" data-tab="overview">Overview</button>
-        <button type="button" data-tab="sales">Sales Performance</button>
-        <button type="button" data-tab="deals">All Deals</button>
-        <button type="button" data-tab="leads">New Deals</button>
-        <button type="button" data-tab="pipeline">Pipeline Risk</button>
-        <button type="button" data-tab="data">Data Quality</button>
-      </nav>
-      <p class="tab-description" id="tabDescription">แสดงภาพรวมยอดขายและโอกาสขายที่ผ่านกติกาการนับยอดขาย</p>
 
       <section class="tab-panel active" id="tab-overview">
         <div class="grid two-col">
@@ -242,10 +269,10 @@
             </div>
             <div class="status-checkboxes" id="salesStatusFilters">
               <label><input type="checkbox" data-sales-status="won" checked />Won</label>
-              <label><input type="checkbox" data-sales-status="commit" checked />Commit</label>
-              <label><input type="checkbox" data-sales-status="upside" checked />Upside</label>
-              <label><input type="checkbox" data-sales-status="open" checked />Open</label>
-              <label><input type="checkbox" data-sales-status="lost" checked />Lost</label>
+              <label><input type="checkbox" data-sales-status="commit" />Commit</label>
+              <label><input type="checkbox" data-sales-status="upside" />Upside</label>
+              <label><input type="checkbox" data-sales-status="open" />Open</label>
+              <label><input type="checkbox" data-sales-status="lost" />Lost</label>
             </div>
           </div>
         </article>
@@ -362,20 +389,6 @@
               <h2>New Deals by ISO Week</h2>
               <p>ใช้ Created Date เป็น key เพื่อวัดประสิทธิภาพการหา Lead ของ Sale</p>
             </div>
-          </div>
-          <div class="lead-filter-grid">
-            <label>
-              ตั้งแต่ Week
-              <select id="leadStartWeek"></select>
-            </label>
-            <label>
-              ถึง Week
-              <select id="leadEndWeek"></select>
-            </label>
-            <label>
-              ค้นหา Lead
-              <input id="leadSearchInput" type="search" placeholder="Sale, บริษัท, ดีล, Stage, Pipeline" />
-            </label>
           </div>
           <div id="newLeadSummary" class="lead-summary-grid"></div>
         </article>
