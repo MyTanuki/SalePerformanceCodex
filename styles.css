@@ -444,7 +444,8 @@ input[type="file"] {
 }
 
 .pipeline-matching-matrix {
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: visible;
   border: 1px solid var(--line);
@@ -513,14 +514,14 @@ input[type="file"] {
 
 .pipeline-matrix-table .group-col {
   left: 0;
-  width: 160px;
-  min-width: 160px;
-  max-width: 160px;
+  width: 245px;
+  min-width: 245px;
+  max-width: 245px;
   text-align: left;
 }
 
 .pipeline-matrix-table .type-col {
-  left: 160px;
+  left: 245px;
   width: 66px;
   min-width: 66px;
   max-width: 66px;
@@ -590,7 +591,7 @@ input[type="file"] {
 
 .filter-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
@@ -665,6 +666,16 @@ input[type="search"]:focus {
   outline: 0;
 }
 
+#periodSubWeek {
+  width: fit-content;
+}
+
+#periodWeek {
+  width: max-content;
+  min-width: 260px;
+  field-sizing: content;
+}
+
 .segment {
   display: inline-grid;
   grid-auto-flow: column;
@@ -696,6 +707,13 @@ input[type="search"]:focus {
   color: #fff;
 }
 
+.tabs button.active {
+  background: linear-gradient(90deg, #f8c64f 0%, #16a34a 100%);
+  color: #0f172a;
+  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.28);
+  transform: translateY(-1px);
+}
+
 .segment button[data-category="new"].active {
   background: var(--renew);
 }
@@ -708,7 +726,7 @@ input[type="search"]:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 0;
   color: var(--ink);
   white-space: nowrap;
 }
@@ -860,13 +878,24 @@ input[type="search"]:focus {
 .tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 14px;
-  padding: 6px;
+  margin-bottom: 6px;
+  padding: 7px;
+  border-color: rgba(22, 101, 52, 0.22);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .tabs button {
   min-height: 38px;
   padding: 0 16px;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+
+.tab-description {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .tab-panel {
@@ -1369,8 +1398,8 @@ input[type="search"]:focus {
 .transaction-search-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .lead-filter-grid {
@@ -1449,11 +1478,11 @@ input[type="search"]:focus {
 .transaction-search-block {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
-  padding: 12px;
+  padding: 10px;
 }
 
 .transaction-search-block strong {

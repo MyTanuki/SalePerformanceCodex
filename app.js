@@ -40,6 +40,14 @@ const state = {
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const saleTypes = ["renew", "new"];
+const tabDescriptions = {
+  overview: "แสดงภาพรวมยอดขาย โครงสร้าง New/Renew และ Top Open Opportunities เฉพาะ Deals ที่กำหนดให้นับยอดขาย",
+  sales: "แสดงเฉพาะ Deals ที่กำหนดให้นับยอดขาย",
+  deals: "แสดงรายละเอียดทุก Deal ในช่วงเวลาที่เลือก รวมทั้ง Deals ที่ถูกนับและไม่นับยอดขาย เพื่อใช้ตรวจสอบความคืบหน้า",
+  leads: "แสดง Leads จาก Created Date ตาม ISO Week และใช้ Global Filter ร่วมกับ Filter เฉพาะหน้า New Deals",
+  pipeline: "แสดงเฉพาะ Open Deals ที่กำหนดให้นับยอดขายและมีสัญญาณความเสี่ยงที่ควรติดตาม",
+  data: "แสดงคุณภาพข้อมูล Mapping และข้อสมมติฐานที่ใช้คำนวณ Dashboard",
+};
 const defaultPipelineOrder = [
   "2027 Budget Setup (งบปี 70)",
   "2028 Budget Setup (งบปี 71)",
@@ -75,7 +83,7 @@ function createEmptyDashboardData() {
       },
       assumptions: [
         "Web starts empty. Upload Sale Target and Deal CSV to build the dashboard.",
-        "Stage Mapping, Sale Target, and Pipeline Matching rules can be auto-loaded from ./data.",
+        "Stage Mapping and Sale Target can be auto-loaded from ./data.",
       ],
     },
     months,
@@ -165,6 +173,7 @@ const els = {
   saleSelect: document.querySelector("#saleSelect"),
   searchInput: document.querySelector("#searchInput"),
   showUnmapped: document.querySelector("#showUnmapped"),
+  tabDescription: document.querySelector("#tabDescription"),
   kpiGrid: document.querySelector("#kpiGrid"),
   monthlyChart: document.querySelector("#monthlyChart"),
   teamChart: document.querySelector("#teamChart"),
@@ -190,6 +199,9 @@ const els = {
   transactionNotInputs: Array.from(document.querySelectorAll("[data-transaction-not]")),
   transactionTable: document.querySelector("#transactionTable"),
   transactionTotalAmount: document.querySelector("#transactionTotalAmount"),
+  allDealsAndInputs: Array.from(document.querySelectorAll("[data-all-deals-and]")),
+  allDealsNotInputs: Array.from(document.querySelectorAll("[data-all-deals-not]")),
+  allDealsTotalAmount: document.querySelector("#allDealsTotalAmount"),
 };
 
 function currentTargetSales() {
@@ -1011,6 +1023,7 @@ function initFilters() {
       button.classList.add("active");
       state.tab = button.dataset.tab;
       document.querySelector(`#tab-${state.tab}`).classList.add("active");
+      renderTabDescription();
       renderTablesOnly();
     });
   });
@@ -1023,6 +1036,11 @@ function initFilters() {
   [...els.transactionAndInputs, ...els.transactionNotInputs].forEach((input) => {
     input.addEventListener("input", () => {
       if (state.tab === "sales") renderTablesOnly();
+    });
+  });
+  [...els.allDealsAndInputs, ...els.allDealsNotInputs].forEach((input) => {
+    input.addEventListener("input", () => {
+      if (state.tab === "deals") renderTablesOnly();
     });
   });
   els.transactionTable.addEventListener("click", (event) => {
@@ -1355,41 +1373,6 @@ function clearPipelineMatching() {
   applyPipelineMatchingRules(new Map(), "ล้าง Pipeline Matching แล้ว ระบบกลับไปนับทุก Pipeline");
 }
 
-async function autoLoadDefaultPipelineMatching() {
-  const currentMappings = activeMappings();
-  if ((mappingCounts(currentMappings).pipelineRules || 0) > 0) return;
-  try {
-    const response = await fetch("./data/Stage Mapping Button.csv", { cache: "no-store" });
-    if (!response.ok) return;
-    const defaultRules = parseMappingCsv(await response.text());
-    if (!(mappingCounts(defaultRules).pipelineRules || 0)) return;
-    const mappings = mergeMappings(currentMappings, defaultRules);
-    dashboardData = remapDashboardDataWithMappings(
-      {
-        ...dashboardData,
-        mappings: serializeMappings(mappings),
-        metadata: {
-          ...dashboardData.metadata,
-          generatedAt: new Date().toISOString(),
-          sourceFiles: {
-            ...dashboardData.metadata.sourceFiles,
-            mapping: "./data/Stage Mapping Button.csv",
-          },
-        },
-      },
-      mappings,
-    );
-    storeDashboardData(dashboardData);
-    renderPeriodOptions();
-    renderGroupOptions();
-    renderSaleOptions();
-    renderFilterVisibility();
-    render();
-  } catch {
-    // The dashboard can still run without the optional default rule file.
-  }
-}
-
 async function autoLoadDefaultSetupFiles() {
   const statusParts = [];
   let mappings = activeMappings();
@@ -1397,19 +1380,11 @@ async function autoLoadDefaultSetupFiles() {
     const stageResponse = await fetch("./data/Stage Mapping.csv", { cache: "no-store" });
     if (stageResponse.ok) {
       const stageMappings = parseMappingCsv(await stageResponse.text());
-      if (mappingCounts(stageMappings).stages || mappingCounts(stageMappings).dealTypes || mappingCounts(stageMappings).pipelines) {
+      const stageCounts = mappingCounts(stageMappings);
+      if (stageCounts.stages || stageCounts.dealTypes || stageCounts.pipelines || stageCounts.pipelineRules || stageCounts.sales) {
         mappings = mergeMappings(mappings, stageMappings);
         statusParts.push("Stage Mapping");
         setAutoLoadedFileName("mapping", "Stage Mapping.csv");
-      }
-    }
-
-    const buttonResponse = await fetch("./data/Stage Mapping Button.csv", { cache: "no-store" });
-    if (buttonResponse.ok) {
-      const buttonMappings = parseMappingCsv(await buttonResponse.text());
-      if (mappingCounts(buttonMappings).pipelineRules) {
-        mappings = mergeMappings(mappings, buttonMappings);
-        statusParts.push("Pipeline Matching");
       }
     }
 
@@ -2638,17 +2613,19 @@ function renderTransactionTable(scope) {
   const rows = filteredPerformanceDeals(scope, "all")
     .filter((deal) => categoryMatches(deal.category))
     .filter((deal) => state.statusFilters[performanceBucket(deal)])
-    .filter((deal) => {
-      const text = transactionSearchText(deal);
-      const tokens = transactionSearchTokens(deal);
-      if (globalTerm && !transactionTermMatches(globalTerm, text, tokens)) return false;
-      if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
-      if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
-      return true;
-    });
+    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm));
   sortTransactionRows(rows);
   els.transactionTotalAmount.textContent = money(sum(rows, (row) => row.amount));
   els.transactionTable.innerHTML = transactionTable(rows.slice(0, 500));
+}
+
+function dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm = "") {
+  const text = transactionSearchText(deal);
+  const tokens = transactionSearchTokens(deal);
+  if (globalTerm && !transactionTermMatches(globalTerm, text, tokens)) return false;
+  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
+  if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
+  return true;
 }
 
 function transactionSearchText(deal) {
@@ -2741,10 +2718,15 @@ function transactionHeader(key, label, numeric = false, extraClass = "") {
 }
 
 function renderDealDetailTable(scope) {
-  const rows = filteredDeals(scope, { countingIncluded: false });
+  const andTerms = els.allDealsAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
+  const notTerms = els.allDealsNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
+  const globalTerm = normalizeSearch(state.search);
+  const rows = filteredDeals(scope, { countingIncluded: false })
+    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm));
   sortDealDetailRows(rows);
   const visibleRows = rows.slice(0, 300);
 
+  if (els.allDealsTotalAmount) els.allDealsTotalAmount.textContent = money(sum(rows, (row) => row.amount));
   els.dealDetailTable.innerHTML = dealDetailTable(visibleRows, "ไม่มี deal detail ในเดือนที่เลือก");
 }
 
@@ -3242,6 +3224,7 @@ function renderDataQuality() {
 }
 
 function renderTablesOnly() {
+  renderTabDescription();
   const scope = calcScope();
   if (state.tab === "overview") renderTopDealsTable(scope);
   if (state.tab === "sales") {
@@ -3256,6 +3239,11 @@ function renderTablesOnly() {
     renderRiskDealsTable(scope);
   }
   if (state.tab === "data") renderDataQuality();
+}
+
+function renderTabDescription() {
+  if (!els.tabDescription) return;
+  els.tabDescription.textContent = tabDescriptions[state.tab] || "";
 }
 
 function render() {

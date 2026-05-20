@@ -172,11 +172,12 @@
       <nav class="tabs" aria-label="Dashboard tabs">
         <button type="button" class="active" data-tab="overview">Overview</button>
         <button type="button" data-tab="sales">Sales Performance</button>
-        <button type="button" data-tab="deals">Deal Detail</button>
+        <button type="button" data-tab="deals">All Deals</button>
         <button type="button" data-tab="leads">New Deals</button>
         <button type="button" data-tab="pipeline">Pipeline Risk</button>
         <button type="button" data-tab="data">Data Quality</button>
       </nav>
+      <p class="tab-description" id="tabDescription">แสดงภาพรวมยอดขายและโอกาสขายที่ผ่านกติกาการนับยอดขาย</p>
 
       <section class="tab-panel active" id="tab-overview">
         <div class="grid two-col">
@@ -329,9 +330,29 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <h2>Deal Detail by Month</h2>
+              <h2>All Deals</h2>
               <p>ติดตามสถานะและความคืบหน้าราย Deal ตามเดือนที่เลือก</p>
             </div>
+          </div>
+          <div class="transaction-search-grid">
+            <div class="transaction-search-block">
+              <strong>ค้นหา AND</strong>
+              <input type="search" data-all-deals-and placeholder="คำค้นหาที่ 1" />
+              <input type="search" data-all-deals-and placeholder="คำค้นหาที่ 2" />
+              <input type="search" data-all-deals-and placeholder="คำค้นหาที่ 3" />
+              <input type="search" data-all-deals-and placeholder="คำค้นหาที่ 4" />
+            </div>
+            <div class="transaction-search-block">
+              <strong>ไม่รวม NOT</strong>
+              <input type="search" data-all-deals-not placeholder="ไม่รวมคำที่ 1" />
+              <input type="search" data-all-deals-not placeholder="ไม่รวมคำที่ 2" />
+              <input type="search" data-all-deals-not placeholder="ไม่รวมคำที่ 3" />
+              <input type="search" data-all-deals-not placeholder="ไม่รวมคำที่ 4" />
+            </div>
+          </div>
+          <div class="transaction-total">
+            <span>ยอดรวม</span>
+            <strong id="allDealsTotalAmount">฿0</strong>
           </div>
           <div id="dealDetailTable" class="table-wrap"></div>
         </article>
@@ -341,7 +362,7 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <h2>New Lead by ISO Week</h2>
+              <h2>New Deals by ISO Week</h2>
               <p>ใช้ Created Date เป็น key เพื่อวัดประสิทธิภาพการหา Lead ของ Sale</p>
             </div>
           </div>
