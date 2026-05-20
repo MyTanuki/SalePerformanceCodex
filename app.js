@@ -2609,20 +2609,18 @@ function renderCumulativePerformanceChart(scope) {
 function renderTransactionTable(scope) {
   const andTerms = els.transactionAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const notTerms = els.transactionNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
-  const globalTerm = normalizeSearch(state.search);
   const rows = filteredPerformanceDeals(scope, "all")
     .filter((deal) => categoryMatches(deal.category))
     .filter((deal) => state.statusFilters[performanceBucket(deal)])
-    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm));
+    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms));
   sortTransactionRows(rows);
   els.transactionTotalAmount.textContent = money(sum(rows, (row) => row.amount));
   els.transactionTable.innerHTML = transactionTable(rows.slice(0, 500));
 }
 
-function dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm = "") {
+function dealMatchesAndNotTerms(deal, andTerms, notTerms) {
   const text = transactionSearchText(deal);
   const tokens = transactionSearchTokens(deal);
-  if (globalTerm && !transactionTermMatches(globalTerm, text, tokens)) return false;
   if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
   if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
   return true;
@@ -2720,9 +2718,8 @@ function transactionHeader(key, label, numeric = false, extraClass = "") {
 function renderDealDetailTable(scope) {
   const andTerms = els.allDealsAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const notTerms = els.allDealsNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
-  const globalTerm = normalizeSearch(state.search);
   const rows = filteredDeals(scope, { countingIncluded: false })
-    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms, globalTerm));
+    .filter((deal) => dealMatchesAndNotTerms(deal, andTerms, notTerms));
   sortDealDetailRows(rows);
   const visibleRows = rows.slice(0, 300);
 
