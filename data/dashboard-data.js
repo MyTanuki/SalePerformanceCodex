@@ -1,0 +1,73 @@
+window.DASHBOARD_DATA = {
+  metadata: {
+    generatedAt: new Date().toISOString(),
+    asOfDate: new Date().toISOString().slice(0, 10),
+    sourceFiles: {
+      deals: "",
+      target: "",
+      mapping: "",
+    },
+    assumptions: [
+      "Web starts empty. Upload Sale Target and Deal CSV to build the dashboard.",
+      "Default setup files are auto-loaded from ./data when available.",
+    ],
+  },
+  months: Array.from({ length: 60 }, (_, index) => {
+    const year = 2024 + Math.floor(index / 12);
+    const month = (index % 12) + 1;
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }),
+  stageWeights: {
+    Commit: 0.8,
+    "Negotiations Started": 0.6,
+    "Quotation Sent": 0.55,
+    Upside: 0.5,
+    Upsde: 0.5,
+    "Qualified Pipeline": 0.4,
+    "Deal Proposed": 0.35,
+    "Deal (By Chance Project)": 0.25,
+    "Pre-Qualified Pipeline": 0.2,
+    Contacted: 0.15,
+    "Contacted-OK": 0.15,
+    "New Request": 0.08,
+    "Not Contacted": 0.05,
+    Open: 0.1,
+  },
+  mappings: {
+    pipelineGroupMap: {},
+    pipelineRuleMap: {},
+    stageMap: {},
+    dealTypeMap: {},
+    salesGroupMap: {},
+    counts: {
+      pipelines: 0,
+      pipelineRules: 0,
+      stages: 0,
+      dealTypes: 0,
+      sales: 0,
+    },
+  },
+  sales: [],
+  facts: [],
+  openDeals: [],
+  dealDetails: [],
+  quality: {
+    dealRows: 0,
+    targetRows: 0,
+    preWonAsWon: { count: 0, amount: 0 },
+    preLostAsLost: { count: 0, amount: 0 },
+    won: { count: 0, amount: 0 },
+    lost: { count: 0, amount: 0 },
+    open: { count: 0, amount: 0 },
+    overdueOpen: { count: 0, amount: 0 },
+    noExpectedOpen: { count: 0, amount: 0 },
+    stale30Open: { count: 0, amount: 0 },
+    notContactedOpen: { count: 0, amount: 0 },
+    pipelineGroupMismatch: { count: 0, amount: 0 },
+    pipelineIncluded: { count: 0, amount: 0 },
+    pipelineExcluded: { count: 0, amount: 0 },
+    pipelineUnmapped: { count: 0, amount: 0 },
+    zeroTargetSales: { count: 0, amount: 0 },
+  },
+  unmappedResponsibles: [],
+};

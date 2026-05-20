@@ -1,0 +1,72 @@
+# Sale Performance Dashboard 2026
+
+Static dashboard for combining deal pipeline data with Sale Target 2026.
+
+## Open
+
+For offline preview on Windows, double-click `start-preview.cmd` from this folder, or run:
+
+```bat
+start-preview.cmd
+```
+
+It starts a local preview server and opens:
+
+```text
+http://127.0.0.1:4174/
+```
+
+Keep the command window open while previewing. Press `Ctrl+C` in that window to stop the server.
+
+## Refresh Data In The UI
+
+Use the gear button in the header to upload:
+
+- `Sale Target.csv`
+- `Deal.csv`
+
+Either file can be refreshed independently, or both can be uploaded together before pressing `Refresh Dashboard`.
+
+## Rebuild Data
+
+Run this when either CSV changes:
+
+```powershell
+node .\scripts\build-dashboard-data.js
+```
+
+Optional custom source paths:
+
+```powershell
+node .\scripts\build-dashboard-data.js "C:\Temp\DEAL_20260506_2e04b49b_69fabfc019c48.csv" "C:\Users\noppadol.s\OneDrive - 1-TO-ALL Co., Ltd\Project\1toAll\Sales Dashboard\Sales Amount\Sale Target 2026_r1.5.csv"
+```
+
+## Stage Assumptions
+
+- `Pre-WON` is counted as `Won`.
+- `Pre-LOST` is counted as `Lost`.
+- Won/Lost month uses `Stage change date`, then falls back to `Expected close date`, then `Created`.
+- Renew category uses Pipeline containing `Renew` or Deal Type starting with `Re-New`; otherwise the deal is treated as New.
+
+## Upload To GitHub
+
+Use the reusable upload workflow:
+
+```bat
+upload-to-github.cmd
+```
+
+Optional:
+
+```bat
+upload-to-github.cmd -CommitMessage "Update dashboard" -Branch "codex/update-dashboard"
+```
+
+The script asks for confirmation before each important step:
+
+- Confirm GitHub remote
+- Confirm staging changed files
+- Confirm commit
+- Confirm push to GitHub
+
+If `git` is not available in PATH, install Git for Windows or open the project from a shell where `git` works, then run the command again.
