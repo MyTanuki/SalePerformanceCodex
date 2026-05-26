@@ -220,6 +220,7 @@ const els = {
   revenueTargetSummary: document.querySelector("#revenueTargetSummary"),
   revenueTargetTable: document.querySelector("#revenueTargetTable"),
   exportRevenueTargetCsv: document.querySelector("#exportRevenueTargetCsv"),
+  exportRevenueDetailCsv: document.querySelector("#exportRevenueDetailCsv"),
   revenueExpectedFallback: document.querySelector("#revenueExpectedFallback"),
   revenueDetailTable: document.querySelector("#revenueDetailTable"),
   revenueExceptionTable: document.querySelector("#revenueExceptionTable"),
@@ -731,6 +732,13 @@ function monthRange(startMonth, monthsCount) {
   return Array.from({ length: Math.max(0, monthsCount) }, (_, index) => addMonths(startMonth, index));
 }
 
+function monthEndDate(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return "";
+  const date = new Date(Date.UTC(year, month, 0));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
 function displayDate(dateText) {
   const parts = parseDateValue(dateText);
   if (!parts) return cleanText(dateText) || "-";
@@ -1231,6 +1239,7 @@ function initFilters() {
   });
   els.applyCsvFiles.addEventListener("click", handleCsvRefresh);
   els.exportRevenueTargetCsv?.addEventListener("click", exportRevenueTargetCsv);
+  els.exportRevenueDetailCsv?.addEventListener("click", exportRevenueDetailCsv);
   els.clearCsvFiles.addEventListener("click", () => {
     els.targetCsvInput.value = "";
     els.dealCsvInput.value = "";
@@ -3299,7 +3308,7 @@ function revenueScheduleForDeal(deal) {
 
   if (isOneTimeBilling(deal.billingType)) {
     const months = [start.monthKey];
-    const serviceEnd = hasValidEnd ? end.date : period > 1 ? monthLabel(addMonths(start.monthKey, period - 1)) : start.date;
+    const serviceEnd = hasValidEnd ? end.date : period > 1 ? monthEndDate(addMonths(start.monthKey, period - 1)) : start.date;
     return {
       deal,
       entries: [
@@ -3363,7 +3372,7 @@ function revenueScheduleForDeal(deal) {
     if (Math.abs(mrrTotal - amount) > Math.max(1, Math.abs(amount) * 0.02)) flags.push(`MRR x months mismatch ${money(mrrTotal)}`);
   }
 
-  const contractEnd = hasValidEnd ? end.date : monthLabel(endMonth);
+  const contractEnd = hasValidEnd ? end.date : monthEndDate(endMonth);
   return {
     deal,
     entries,
@@ -3748,6 +3757,48 @@ function exportRevenueTargetCsv() {
   downloadTextFile(`2026-recurring-target-from-2025-revenue.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
 }
 
+function exportRevenueDetailCsv() {
+  const rows = filteredRevenueDetailRows(buildRevenueAnalysis(calcScope()).detailRows);
+  const headers = [
+    "Deal ID",
+    "Revenue Month",
+    "Revenue Date",
+    "Month Position",
+    "Sale",
+    "Sale Group",
+    "Company",
+    "Deal",
+    "Type",
+    "Billing",
+    "Contract",
+    "Expected Close Date",
+    "Monthly Revenue",
+    "Contract Amount",
+    "Rule",
+    "Checks",
+  ];
+  const body = rows.map((row) => [
+    row.id || "",
+    row.monthLabel || "",
+    row.revenueDate || "",
+    row.monthPosition || "",
+    row.saleName || "",
+    row.group || "",
+    row.company || "",
+    row.dealName || "",
+    row.category || "",
+    row.billingType || "",
+    row.contractRange || "",
+    row.expectedDate || "",
+    row.monthlyRevenue || 0,
+    row.contractAmount || 0,
+    row.revenueRule || "",
+    row.flagsLabel || "",
+  ]);
+  const csv = [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  downloadTextFile(`revenue-detail-filtered.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+}
+
 function downloadTextFile(fileName, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -3761,13 +3812,18 @@ function downloadTextFile(fileName, content, mimeType) {
 }
 
 function renderRevenueDetailTable(detailRows) {
+  const rows = filteredRevenueDetailRows(detailRows);
+  els.revenueDetailTable.innerHTML = revenueDetailTable(rows.slice(0, 500));
+}
+
+function filteredRevenueDetailRows(detailRows) {
   const andTerms = els.revenueAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const notTerms = els.revenueNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
   const baseRows = detailRows.filter((row) => revenueRowMatchesAndNotTerms(row, andTerms, notTerms));
   tableFilterSources.revenue = baseRows;
-  const rows = applyColumnFilters("revenue", baseRows);
+  const rows = applyColumnFilters("revenue", baseRows).slice();
   rows.sort(sortRevenueRowsByTime);
-  els.revenueDetailTable.innerHTML = revenueDetailTable(rows.slice(0, 500));
+  return rows;
 }
 
 function revenueRowMatchesAndNotTerms(row, andTerms, notTerms) {
