@@ -20,6 +20,7 @@ const state = {
   leadCategory: "all",
   category: "all",
   showUnmapped: false,
+  revenueExpectedFallback: true,
   search: "",
   tab: "overview",
   statusFilters: {
@@ -219,6 +220,7 @@ const els = {
   revenueTargetSummary: document.querySelector("#revenueTargetSummary"),
   revenueTargetTable: document.querySelector("#revenueTargetTable"),
   exportRevenueTargetCsv: document.querySelector("#exportRevenueTargetCsv"),
+  revenueExpectedFallback: document.querySelector("#revenueExpectedFallback"),
   revenueDetailTable: document.querySelector("#revenueDetailTable"),
   revenueExceptionTable: document.querySelector("#revenueExceptionTable"),
   revenueAndInputs: Array.from(document.querySelectorAll("[data-revenue-and]")),
@@ -1128,6 +1130,10 @@ function initFilters() {
     input.addEventListener("input", () => {
       if (state.tab === "revenue") renderTablesOnly();
     });
+  });
+  els.revenueExpectedFallback?.addEventListener("change", () => {
+    state.revenueExpectedFallback = els.revenueExpectedFallback.checked;
+    if (state.tab === "revenue") renderTablesOnly();
   });
   els.transactionTable.addEventListener("click", (event) => {
     const sortButton = event.target.closest("[data-transaction-sort]");
@@ -3254,14 +3260,23 @@ function allocateRevenueAmount(amount, monthsCount) {
 function revenueScheduleForDeal(deal) {
   const amount = roundMoney(Number(deal.amount) || parseMoneyValue(deal.amount));
   const contractStart = parseDateValue(deal.contractStartDate);
-  const start = contractStart || revenueDateParts(deal.startDate, deal.stageChangeDate, deal.expectedDate, deal.createdDate);
+  const expectedStart = parseDateValue(deal.expectedDate);
+  const fallbackStart = state.revenueExpectedFallback
+    ? revenueDateParts(deal.expectedDate, deal.startDate, deal.stageChangeDate, deal.createdDate)
+    : revenueDateParts(deal.startDate, deal.stageChangeDate, deal.expectedDate, deal.createdDate);
+  const start = contractStart || fallbackStart;
   const end = parseDateValue(deal.contractEndDate);
   const period = revenuePeriodMonths(deal);
   const mrr = Number(deal.mrr) || parseMoneyValue(deal.mrr);
   const flags = [];
 
   if (!amount) flags.push("Zero contract amount");
-  if (!contractStart) flags.push("Missing contract start date");
+  if (!contractStart) {
+    flags.push("Missing contract start date");
+    if (state.revenueExpectedFallback && expectedStart && start?.date === expectedStart.date) {
+      flags.push("Using expected close date as contract start");
+    }
+  }
   if (!start) {
     return {
       deal,

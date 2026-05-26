@@ -1478,6 +1478,15 @@ body.is-leads-tab .kpi-grid {
   height: 16px;
 }
 
+.revenue-options {
+  justify-content: flex-end;
+  max-width: 430px;
+}
+
+.revenue-options label {
+  white-space: normal;
+}
+
 .chart-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
