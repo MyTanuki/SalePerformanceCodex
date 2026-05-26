@@ -40,6 +40,7 @@ const state = {
   columnFilters: {
     transaction: {},
     allDeals: {},
+    revenue: {},
     leads: {},
   },
 };
@@ -49,11 +50,13 @@ const saleTypes = ["renew", "new"];
 const tableFilterSources = {
   transaction: [],
   allDeals: [],
+  revenue: [],
   leads: [],
 };
 const tabDescriptions = {
   overview: "แสดงภาพรวมยอดขาย โครงสร้าง New/Renew และ Top Open Opportunities เฉพาะ Deals ที่กำหนดให้นับยอดขาย",
   sales: "แสดงเฉพาะ Deals ที่กำหนดให้นับยอดขาย",
+  revenue: "สรุปกระแสรายได้รายเดือนจาก Deals Won / Pre-WON ที่กำหนดให้นับยอดขาย โดยใช้ช่วงสัญญาเพื่อสนับสนุนฝ่ายบัญชี การเงิน และผู้บริหาร",
   deals: "แสดงรายละเอียดทุก Deal ในช่วงเวลาที่เลือก รวมทั้ง Deals ที่ถูกนับและไม่นับยอดขาย เพื่อใช้ตรวจสอบความคืบหน้า",
   leads: "แสดง Leads จาก Created Date ตาม ISO Week โดยใช้เฉพาะ Filter ในหน้า New Deals",
   pipeline: "แสดงเฉพาะ Open Deals ที่กำหนดให้นับยอดขายและมีสัญญาณความเสี่ยงที่ควรติดตาม",
@@ -95,6 +98,7 @@ function createEmptyDashboardData() {
       assumptions: [
         "Web starts empty. Upload Sale Target and Deal CSV to build the dashboard.",
         "Stage Mapping and Sale Target can be auto-loaded from ./data.",
+        "Revenue Analysis uses Won / Pre-WON deals that pass counting rules. One-time/OTC deals are recognized in the contract start month; recurring deals are spread by Contract Start/End, Contract Period, or MRR fallback.",
       ],
     },
     months,
@@ -209,6 +213,16 @@ const els = {
   renewSalesChart: document.querySelector("#renewSalesChart"),
   newSalesChart: document.querySelector("#newSalesChart"),
   cumulativeSalesChart: document.querySelector("#cumulativeSalesChart"),
+  revenueSummary: document.querySelector("#revenueSummary"),
+  revenueMonthlyChart: document.querySelector("#revenueMonthlyChart"),
+  revenueBySale: document.querySelector("#revenueBySale"),
+  revenueTargetSummary: document.querySelector("#revenueTargetSummary"),
+  revenueTargetTable: document.querySelector("#revenueTargetTable"),
+  exportRevenueTargetCsv: document.querySelector("#exportRevenueTargetCsv"),
+  revenueDetailTable: document.querySelector("#revenueDetailTable"),
+  revenueExceptionTable: document.querySelector("#revenueExceptionTable"),
+  revenueAndInputs: Array.from(document.querySelectorAll("[data-revenue-and]")),
+  revenueNotInputs: Array.from(document.querySelectorAll("[data-revenue-not]")),
   transactionAndInputs: Array.from(document.querySelectorAll("[data-transaction-and]")),
   transactionNotInputs: Array.from(document.querySelectorAll("[data-transaction-not]")),
   transactionTable: document.querySelector("#transactionTable"),
@@ -335,6 +349,11 @@ function parseMoneyValue(value) {
   if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === "-.") return 0;
   const number = Number(cleaned);
   return Number.isFinite(number) ? number : 0;
+}
+
+function parsePositiveInt(value) {
+  const number = Math.round(parseMoneyValue(value));
+  return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
 function roundMoney(value) {
@@ -694,6 +713,22 @@ function monthLabel(month) {
   return `${monthNames[index] || month} ${month.slice(0, 4)}`;
 }
 
+function addMonths(monthKey, offset) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthDiffInclusive(startMonth, endMonth) {
+  const [startYear, start] = startMonth.split("-").map(Number);
+  const [endYear, end] = endMonth.split("-").map(Number);
+  return Math.max(0, (endYear - startYear) * 12 + end - start + 1);
+}
+
+function monthRange(startMonth, monthsCount) {
+  return Array.from({ length: Math.max(0, monthsCount) }, (_, index) => addMonths(startMonth, index));
+}
+
 function displayDate(dateText) {
   const parts = parseDateValue(dateText);
   if (!parts) return cleanText(dateText) || "-";
@@ -727,7 +762,7 @@ function isIsoWeekKey(value) {
 
 function weekLabel(weekKey) {
   const range = isoWeekRange(weekKey);
-  return `${weekKey} (${range.start.date} - ${range.end.date})`;
+  return `${weekKey} (${range.start.date})`;
 }
 
 function isoWeekRange(weekKey) {
@@ -827,7 +862,7 @@ function itemMatchesSaleScope(item, scope) {
 
 function dealSearchText(deal) {
   return normalizeSearch(
-    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product || ""} ${deal.category || ""} ${performanceBucket(deal)} ${deal.expectedDate || ""} ${deal.stageChangeDate || ""} ${deal.createdDate || ""}`,
+    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product || ""} ${deal.category || ""} ${deal.billingType || ""} ${deal.contractStartDate || ""} ${deal.contractEndDate || ""} ${deal.servicePeriod || ""} ${performanceBucket(deal)} ${deal.expectedDate || ""} ${deal.stageChangeDate || ""} ${deal.createdDate || ""}`,
   );
 }
 
@@ -964,6 +999,8 @@ function initFilters() {
   renderGroupOptions();
   renderSaleOptions();
   renderFilterVisibility();
+  setupSelectControls();
+  syncWeekSelectControls();
 
   els.viewMode.addEventListener("change", () => {
     state.viewMode = els.viewMode.value;
@@ -1012,6 +1049,7 @@ function initFilters() {
       state.leadEndWeek = state.leadStartWeek;
       els.leadEndWeek.value = state.leadEndWeek;
     }
+    syncWeekSelectControls();
     renderTablesOnly();
   });
   els.leadEndWeek.addEventListener("change", () => {
@@ -1020,6 +1058,7 @@ function initFilters() {
       state.leadStartWeek = state.leadEndWeek;
       els.leadStartWeek.value = state.leadStartWeek;
     }
+    syncWeekSelectControls();
     renderTablesOnly();
   });
   els.leadSearchInput.addEventListener("input", () => {
@@ -1047,18 +1086,15 @@ function initFilters() {
   });
   document.querySelectorAll(".segment button[data-category]").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".segment button[data-category]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
+      if (state.tab === "leads") {
+        state.leadCategory = button.dataset.category;
+        renderCategoryButtons();
+        renderTablesOnly();
+        return;
+      }
       state.category = button.dataset.category;
+      renderCategoryButtons();
       render();
-    });
-  });
-  document.querySelectorAll(".lead-category-segment button[data-lead-category]").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".lead-category-segment button[data-lead-category]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-      state.leadCategory = button.dataset.leadCategory;
-      if (state.tab === "leads") renderTablesOnly();
     });
   });
   document.querySelectorAll(".tabs button").forEach((button) => {
@@ -1086,6 +1122,11 @@ function initFilters() {
   [...els.allDealsAndInputs, ...els.allDealsNotInputs].forEach((input) => {
     input.addEventListener("input", () => {
       if (state.tab === "deals") renderTablesOnly();
+    });
+  });
+  [...els.revenueAndInputs, ...els.revenueNotInputs].forEach((input) => {
+    input.addEventListener("input", () => {
+      if (state.tab === "revenue") renderTablesOnly();
     });
   });
   els.transactionTable.addEventListener("click", (event) => {
@@ -1117,6 +1158,12 @@ function initFilters() {
     }
     const dealRow = event.target.closest("[data-deal-key]");
     if (dealRow) openDealModal(dealRow.dataset.dealKey);
+  });
+  [els.revenueDetailTable, els.revenueExceptionTable].forEach((table) => {
+    table?.addEventListener("click", (event) => {
+      const dealRow = event.target.closest("[data-deal-key]");
+      if (dealRow) openDealModal(dealRow.dataset.dealKey);
+    });
   });
   [els.topDealsTable, els.riskDealsTable].forEach((table) => {
     table.addEventListener("click", (event) => {
@@ -1153,9 +1200,13 @@ function initFilters() {
     if (event.target === els.dealModal) closeDealModal();
   });
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeWeekSelects();
     if (event.key !== "Escape") return;
     if (!els.dealModal.hidden) closeDealModal();
     if (!els.settingsModal.hidden) closeSettings();
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".week-select-control")) closeWeekSelects();
   });
   [els.targetCsvInput, els.dealCsvInput, els.mappingCsvInput].forEach((input) => {
     input.addEventListener("change", () => {
@@ -1173,6 +1224,7 @@ function initFilters() {
     });
   });
   els.applyCsvFiles.addEventListener("click", handleCsvRefresh);
+  els.exportRevenueTargetCsv?.addEventListener("click", exportRevenueTargetCsv);
   els.clearCsvFiles.addEventListener("click", () => {
     els.targetCsvInput.value = "";
     els.dealCsvInput.value = "";
@@ -1244,6 +1296,7 @@ function renderPeriodOptions() {
   if (state.leadStartWeek > state.leadEndWeek) state.leadEndWeek = state.leadStartWeek;
   els.leadStartWeek.value = state.leadStartWeek;
   els.leadEndWeek.value = state.leadEndWeek;
+  syncWeekSelectControls();
 
   els.startMonth.innerHTML = monthOptionHtml;
   els.endMonth.innerHTML = monthOptionHtml;
@@ -1257,6 +1310,7 @@ function renderPeriodOptions() {
   if (state.startMonth > state.endMonth) state.startMonth = state.endMonth;
   els.startMonth.value = state.startMonth;
   els.endMonth.value = state.endMonth;
+  syncWeekSelectControls();
 }
 
 function leadWeekOptions() {
@@ -1279,6 +1333,91 @@ function leadWeekOptions() {
     .map((week) => ({ value: week, label: weekLabel(week) }));
 }
 
+function setupSelectControls() {
+  document.querySelectorAll("select").forEach(setupWeekSelectControl);
+}
+
+function setupWeekSelectControl(select) {
+  if (!select || select.dataset.weekSelectReady) return;
+  select.dataset.weekSelectReady = "true";
+  select.classList.add("native-week-select");
+  const wrapper = document.createElement("div");
+  wrapper.className = "week-select-control";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "week-select-button";
+  button.setAttribute("aria-haspopup", "listbox");
+  const list = document.createElement("div");
+  list.className = "week-select-list";
+  list.hidden = true;
+  list.setAttribute("role", "listbox");
+  select.insertAdjacentElement("afterend", wrapper);
+  wrapper.append(button, list);
+  button.addEventListener("click", () => toggleWeekSelect(select));
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleWeekSelect(select, true);
+    }
+  });
+}
+
+function syncWeekSelectControls() {
+  document.querySelectorAll("select").forEach(syncWeekSelectControl);
+}
+
+function syncWeekSelectControl(select) {
+  if (!select) return;
+  const wrapper = select.nextElementSibling?.classList?.contains("week-select-control") ? select.nextElementSibling : null;
+  if (!wrapper) return;
+  const button = wrapper.querySelector(".week-select-button");
+  const list = wrapper.querySelector(".week-select-list");
+  const selected = select.selectedOptions[0];
+  button.textContent = selected?.textContent || "-";
+  list.innerHTML = Array.from(select.options)
+    .map(
+      (option) => `
+        <button type="button" class="${option.value === select.value ? "active" : ""}" data-week-value="${escapeHtml(option.value)}" role="option" aria-selected="${option.value === select.value}" title="${escapeHtml(option.textContent)}">
+          ${escapeHtml(option.textContent)}
+        </button>
+      `,
+    )
+    .join("");
+  list.querySelectorAll("[data-week-value]").forEach((item) => {
+    item.addEventListener("click", () => {
+      select.value = item.dataset.weekValue;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      closeWeekSelects();
+    });
+  });
+}
+
+function toggleWeekSelect(select, open) {
+  const wrapper = select?.nextElementSibling?.classList?.contains("week-select-control") ? select.nextElementSibling : null;
+  if (!wrapper) return;
+  const list = wrapper.querySelector(".week-select-list");
+  const button = wrapper.querySelector(".week-select-button");
+  const shouldOpen = open ?? list.hidden;
+  closeWeekSelects();
+  syncWeekSelectControl(select);
+  list.hidden = !shouldOpen;
+  button.setAttribute("aria-expanded", String(shouldOpen));
+  if (!shouldOpen) return;
+  requestAnimationFrame(() => {
+    const active = list.querySelector(".active");
+    if (active) active.scrollIntoView({ block: "center" });
+  });
+}
+
+function closeWeekSelects() {
+  document.querySelectorAll(".week-select-list").forEach((list) => {
+    list.hidden = true;
+  });
+  document.querySelectorAll(".week-select-button").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+}
+
 function ordinalQuarter(quarter) {
   return ["1st", "2nd", "3rd", "4th"][quarter - 1] || `${quarter}th`;
 }
@@ -1296,6 +1435,7 @@ function renderFilterVisibility() {
   els.periodSubQuarter.hidden = state.periodType !== "quarter";
   els.periodSubMonth.hidden = state.periodType !== "month";
   els.periodSubRange.hidden = state.periodType !== "range";
+  syncWeekSelectControls();
 }
 
 function openSettings() {
@@ -1519,6 +1659,7 @@ function renderGroupOptions() {
     .map((group) => `<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`)
     .join("")}`;
   els.groupSelect.value = state.group;
+  syncWeekSelectControls();
 }
 
 function renderSaleOptions() {
@@ -1528,6 +1669,7 @@ function renderSaleOptions() {
     .map((sale) => `<option value="${escapeHtml(sale.key)}">${escapeHtml(sale.name)}</option>`)
     .join("")}`;
   els.saleSelect.value = state.sale;
+  syncWeekSelectControls();
 }
 
 function renderMeta() {
@@ -1974,6 +2116,10 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
     const closeDate = stageChanged || expected || created;
     const pipeline = cleanText(row.Pipeline);
     const pipelineGroup = mappings.pipelineGroupMap.get(normalizeName(pipeline)) || "";
+    const contractStart = parseDateValue(row["Contract Start Date"]);
+    const contractEnd = parseDateValue(row["Contract End Date"]);
+    const startDate = parseDateValue(row["Start date"]);
+    const closedDate = parseDateValue(row.Closed);
 
     if (!saleByKey.has(saleKey)) {
       const mappedSale = mappings.salesGroupMap.get(normalizeName(responsible));
@@ -2028,6 +2174,14 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
       dealName: cleanText(row["Deal Name"]),
       amount: roundMoney(amount),
       forecastAmount: roundMoney(status === "open" ? amount * stageWeightFor(rawStage, displayStage) : 0),
+      billingType: cleanText(row["Billing Type"]),
+      servicePeriod: cleanText(row["Service Period"]),
+      startDate: startDate?.date || cleanText(row["Start date"]),
+      closedDate: closedDate?.date || cleanText(row.Closed),
+      contractStartDate: contractStart?.date || cleanText(row["Contract Start Date"]),
+      contractEndDate: contractEnd?.date || cleanText(row["Contract End Date"]),
+      contractPeriodMonths: parsePositiveInt(row["Contract Period (จำนวนเดือน)"]),
+      mrr: roundMoney(parseMoneyValue(row.MRR)),
       expectedDate: expected?.date || "",
       expectedMonth: expected?.monthKey || "",
       stageChangeDate: stageChanged?.date || "",
@@ -2722,8 +2876,12 @@ function columnFilterValue(deal, key) {
   if (key === "risk") return riskFilterLabel(deal);
   if (key === "countingStatus") return deal.countingLabel || countingStatusLabel(deal.countingStatus);
   if (key === "amount") return money(deal.amount || 0);
+  if (key === "monthlyRevenue") return money(deal.monthlyRevenue || 0);
+  if (key === "contractAmount") return money(deal.contractAmount || deal.amount || 0);
   if (key === "forecastAmount") return money(deal.forecastAmount || 0);
   if (key === "expectedDate") return displayDate(deal.expectedDate);
+  if (key === "contractRange") return cleanText(deal.contractRange || "-");
+  if (key === "flags") return cleanText(deal.flagsLabel || "-");
   if (key === "stageChangeDate") return displayDate(deal.stageChangeDate);
   if (key === "createdDate") return displayDate(deal.createdDate);
   if (key === "saleName") return cleanText(deal.saleName || deal.responsible || "-");
@@ -2850,7 +3008,7 @@ function closeColumnFilter() {
 }
 
 function resetColumnFilters() {
-  state.columnFilters = { transaction: {}, allDeals: {}, leads: {} };
+  state.columnFilters = { transaction: {}, allDeals: {}, revenue: {}, leads: {} };
   closeColumnFilter();
 }
 
@@ -2859,7 +3017,7 @@ function transactionSearchText(deal) {
   const counting = countingSearchValues(deal).join(" ");
   const risk = riskFilterLabel(deal);
   return normalizeSearch(
-    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product} ${deal.category} ${performanceBucket(deal)} ${deal.status || ""} ${counting} ${risk} ${deal.expectedDate || ""} ${expectedCloseDate} ${deal.stageChangeDate || ""}`,
+    `${deal.id} ${deal.saleName} ${deal.responsible} ${deal.group} ${deal.company} ${deal.dealName} ${deal.pipeline} ${deal.stage} ${deal.rawStage || ""} ${deal.dealType || ""} ${deal.product} ${deal.category} ${deal.billingType || ""} ${deal.contractStartDate || ""} ${deal.contractEndDate || ""} ${deal.servicePeriod || ""} ${performanceBucket(deal)} ${deal.status || ""} ${counting} ${risk} ${deal.expectedDate || ""} ${expectedCloseDate} ${deal.stageChangeDate || ""}`,
   );
 }
 
@@ -3061,6 +3219,705 @@ function dealDetailHeader(key, label, numeric = false, extraClass = "") {
   return `<th class="${className}"><div class="table-header-tools"><button type="button" class="sort-button" data-deal-detail-sort="${key}">${escapeHtml(label)} ${icon}</button>${columnFilterButton("allDeals", key)}</div></th>`;
 }
 
+function revenueDateParts(...values) {
+  for (const value of values) {
+    const parsed = parseDateValue(value);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function revenuePeriodMonths(deal) {
+  return Number(deal.contractPeriodMonths) || parsePositiveInt(deal.contractPeriodMonths);
+}
+
+function isOneTimeBilling(value) {
+  const text = normalizeName(value);
+  const compact = text.replace(/\s+/g, "");
+  return compact === "onetime" || compact === "otc" || text.includes("one time") || text.includes("one off") || text.includes("จายครงเดยว") || text.includes("ครงเดยว");
+}
+
+function isRecurringBilling(value) {
+  const text = normalizeName(value);
+  return text.includes("recurring") || text.includes("subscription") || text.includes("renewal") || text.includes("รายเดอน") || text.includes("ตออาย");
+}
+
+function allocateRevenueAmount(amount, monthsCount) {
+  if (!monthsCount) return [];
+  const sign = amount < 0 ? -1 : 1;
+  const cents = Math.round(Math.abs(amount || 0) * 100);
+  const base = Math.floor(cents / monthsCount);
+  const remainder = cents % monthsCount;
+  return Array.from({ length: monthsCount }, (_, index) => sign * (base + (index < remainder ? 1 : 0)) / 100);
+}
+
+function revenueScheduleForDeal(deal) {
+  const amount = roundMoney(Number(deal.amount) || parseMoneyValue(deal.amount));
+  const contractStart = parseDateValue(deal.contractStartDate);
+  const start = contractStart || revenueDateParts(deal.startDate, deal.stageChangeDate, deal.expectedDate, deal.createdDate);
+  const end = parseDateValue(deal.contractEndDate);
+  const period = revenuePeriodMonths(deal);
+  const mrr = Number(deal.mrr) || parseMoneyValue(deal.mrr);
+  const flags = [];
+
+  if (!amount) flags.push("Zero contract amount");
+  if (!contractStart) flags.push("Missing contract start date");
+  if (!start) {
+    return {
+      deal,
+      entries: [],
+      months: [],
+      contractStart: "",
+      contractEnd: "",
+      contractRange: "-",
+      revenueRule: "No schedule",
+      flags: flags.length ? flags : ["Missing contract start date"],
+    };
+  }
+
+  let monthsCount = 0;
+  let revenueRule = "";
+  const hasValidEnd = Boolean(end && end.ts >= start.ts);
+  if (end && end.ts < start.ts) {
+    flags.push("Contract end before start");
+  }
+
+  if (isOneTimeBilling(deal.billingType)) {
+    const months = [start.monthKey];
+    const serviceEnd = hasValidEnd ? end.date : period > 1 ? monthLabel(addMonths(start.monthKey, period - 1)) : start.date;
+    return {
+      deal,
+      entries: [
+        {
+          deal,
+          monthKey: start.monthKey,
+          amount,
+          monthIndex: 1,
+          monthsCount: 1,
+        },
+      ],
+      months,
+      contractStart: start.date,
+      contractEnd: serviceEnd,
+      contractRange: `${start.date} - ${serviceEnd}`,
+      revenueRule: "One-time at contract start",
+      flags,
+    };
+  }
+
+  if (hasValidEnd) {
+    monthsCount = monthDiffInclusive(start.monthKey, end.monthKey);
+    revenueRule = "Contract start/end";
+  }
+
+  if (!monthsCount && period > 0) {
+    monthsCount = period;
+    revenueRule = "Contract period";
+  }
+
+  if (!monthsCount && mrr > 0 && amount > 0) {
+    monthsCount = Math.max(1, Math.round(amount / mrr));
+    revenueRule = "Inferred from MRR";
+    flags.push("Contract period inferred from MRR");
+  }
+
+  if (!monthsCount) {
+    monthsCount = 1;
+    revenueRule = "One-month fallback";
+    flags.push("Missing contract period/end date");
+  }
+
+  if (monthsCount > 120) {
+    monthsCount = 120;
+    flags.push("Contract period capped at 120 months");
+  }
+
+  const months = monthRange(start.monthKey, monthsCount);
+  const endMonth = months[months.length - 1] || start.monthKey;
+  const allocations = allocateRevenueAmount(amount, months.length);
+  const entries = months.map((monthKey, index) => ({
+    deal,
+    monthKey,
+    amount: roundMoney(allocations[index] || 0),
+    monthIndex: index + 1,
+    monthsCount: months.length,
+  }));
+
+  if (mrr > 0 && months.length) {
+    const mrrTotal = roundMoney(mrr * months.length);
+    if (Math.abs(mrrTotal - amount) > Math.max(1, Math.abs(amount) * 0.02)) flags.push(`MRR x months mismatch ${money(mrrTotal)}`);
+  }
+
+  const contractEnd = hasValidEnd ? end.date : monthLabel(endMonth);
+  return {
+    deal,
+    entries,
+    months,
+    contractStart: start.date,
+    contractEnd,
+    contractRange: `${start.date} - ${contractEnd}`,
+    revenueRule,
+    flags,
+  };
+}
+
+function buildRevenueAnalysis(scope) {
+  const baseDeals = filteredDeals(scope, { period: false, countingIncluded: true })
+    .filter((deal) => deal.status === "won");
+  const schedules = baseDeals.map(revenueScheduleForDeal);
+  const recurringTarget2026 = buildRecurringTarget2026(schedules);
+  const selectedEntries = schedules
+    .flatMap((schedule) =>
+      schedule.entries.map((entry) => ({
+        ...entry,
+        schedule,
+      })),
+    )
+    .filter((entry) => scope.monthSet.has(entry.monthKey));
+  const monthlyRows = scope.months.map((month) => {
+    const entries = selectedEntries.filter((entry) => entry.monthKey === month);
+    const recurringEntries = entries.filter((entry) => isRecurringBilling(entry.deal.billingType));
+    const target = recurringTarget2026.monthlyTotals[month] || 0;
+    const recurringAmount = roundMoney(sum(recurringEntries, (entry) => entry.amount));
+    return {
+      month,
+      amount: roundMoney(sum(entries, (entry) => entry.amount)),
+      recurringAmount,
+      target,
+      achievement: target ? recurringAmount / target : null,
+      deals: new Set(entries.map((entry) => dealDetailKey(entry.deal))).size,
+      recurringDeals: new Set(recurringEntries.map((entry) => dealDetailKey(entry.deal))).size,
+    };
+  });
+  const saleRows = Array.from(
+    selectedEntries.reduce((map, entry) => {
+      const key = entry.deal.saleKey || entry.deal.saleName;
+      if (!map.has(key)) {
+        map.set(key, {
+          saleName: entry.deal.saleName || "-",
+          group: entry.deal.group || "-",
+          amount: 0,
+          deals: new Set(),
+        });
+      }
+      const row = map.get(key);
+      row.amount += entry.amount;
+      row.deals.add(dealDetailKey(entry.deal));
+      return map;
+    }, new Map()).values(),
+  )
+    .map((row) => ({ ...row, amount: roundMoney(row.amount), dealCount: row.deals.size }))
+    .sort((a, b) => b.amount - a.amount);
+  const detailRows = selectedEntries
+    .map((entry) => revenueEntryRow(entry))
+    .sort(sortRevenueRowsByTime);
+  const exceptionRows = schedules
+    .filter((schedule) => schedule.flags.length)
+    .map((schedule) => revenueExceptionRow(schedule))
+    .sort((a, b) => b.contractAmount - a.contractAmount);
+  return {
+    baseDeals,
+    schedules,
+    selectedEntries,
+    monthlyRows,
+    saleRows,
+    detailRows,
+    exceptionRows,
+    recurringTarget2026,
+  };
+}
+
+function targetYearMonths(year) {
+  return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
+}
+
+function buildRecurringTarget2026(schedules) {
+  const sourceYear = 2025;
+  const targetYear = 2026;
+  const targetMonths = targetYearMonths(targetYear);
+  const targetMonthSet = new Set(targetMonths);
+  const rowsByKey = new Map();
+  const monthlyTotals = Object.fromEntries(targetMonths.map((month) => [month, 0]));
+  const dealKeys = new Set();
+
+  schedules
+    .filter((schedule) => isRecurringBilling(schedule.deal.billingType))
+    .forEach((schedule) => {
+      schedule.entries
+        .filter((entry) => entry.monthKey.startsWith(`${sourceYear}-`))
+        .forEach((entry) => {
+          const targetMonth = addMonths(entry.monthKey, 12);
+          if (!targetMonthSet.has(targetMonth)) return;
+          const deal = schedule.deal;
+          const key = `${deal.saleKey || deal.saleName}|${deal.category || "-"}|${deal.group || "-"}`;
+          if (!rowsByKey.has(key)) {
+            rowsByKey.set(key, {
+              saleName: deal.saleName || "-",
+              group: deal.group || "-",
+              category: deal.category || "-",
+              monthly: Object.fromEntries(targetMonths.map((month) => [month, 0])),
+              deals: new Set(),
+              companies: new Set(),
+            });
+          }
+          const row = rowsByKey.get(key);
+          row.monthly[targetMonth] = roundMoney(row.monthly[targetMonth] + entry.amount);
+          row.deals.add(dealDetailKey(deal));
+          row.companies.add(deal.company || deal.dealName || deal.id || "-");
+          monthlyTotals[targetMonth] = roundMoney(monthlyTotals[targetMonth] + entry.amount);
+          dealKeys.add(dealDetailKey(deal));
+        });
+    });
+
+  const rows = Array.from(rowsByKey.values())
+    .map((row) => ({
+      ...row,
+      total: roundMoney(sum(targetMonths, (month) => row.monthly[month] || 0)),
+      dealCount: row.deals.size,
+      companyCount: row.companies.size,
+    }))
+    .sort(
+      (a, b) =>
+        a.group.localeCompare(b.group, "th", { numeric: true }) ||
+        a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
+        a.category.localeCompare(b.category, "th", { numeric: true }),
+    );
+  const total = roundMoney(sum(targetMonths, (month) => monthlyTotals[month] || 0));
+  return {
+    sourceYear,
+    targetYear,
+    months: targetMonths,
+    rows,
+    monthlyTotals,
+    total,
+    dealCount: dealKeys.size,
+  };
+}
+
+function revenueEntryRow(entry) {
+  const { deal, schedule } = entry;
+  const revenueDate = `${entry.monthKey}-01`;
+  return {
+    ...deal,
+    monthKey: entry.monthKey,
+    monthLabel: monthLabel(entry.monthKey),
+    revenueDate,
+    saleName: deal.saleName || "-",
+    companyDeal: `${deal.company || "-"} / ${deal.dealName || deal.id || "-"}`,
+    category: deal.category || "-",
+    billingType: deal.billingType || "-",
+    contractRange: schedule.contractRange,
+    contractAmount: deal.amount || 0,
+    monthlyRevenue: entry.amount,
+    revenueRule: schedule.revenueRule,
+    flagsLabel: schedule.flags.length ? schedule.flags.join(", ") : "Ready",
+    dealKey: dealDetailKey(deal),
+    monthPosition: `${entry.monthIndex}/${entry.monthsCount}`,
+  };
+}
+
+function sortRevenueRowsByTime(a, b) {
+  const dateDiff =
+    (parseDateValue(a.revenueDate)?.ts || 0) - (parseDateValue(b.revenueDate)?.ts || 0) ||
+    (parseDateValue(a.contractStartDate)?.ts || 0) - (parseDateValue(b.contractStartDate)?.ts || 0) ||
+    (parseDateValue(a.stageChangeDate)?.ts || 0) - (parseDateValue(b.stageChangeDate)?.ts || 0) ||
+    (parseDateValue(a.expectedDate)?.ts || 0) - (parseDateValue(b.expectedDate)?.ts || 0);
+  if (dateDiff) return dateDiff;
+  return (
+    a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
+    String(a.id || "").localeCompare(String(b.id || ""), "th", { numeric: true }) ||
+    b.monthlyRevenue - a.monthlyRevenue
+  );
+}
+
+function revenueExceptionRow(schedule) {
+  const { deal } = schedule;
+  return {
+    id: deal.id || "-",
+    saleName: deal.saleName || "-",
+    companyDeal: `${deal.company || "-"} / ${deal.dealName || deal.id || "-"}`,
+    category: deal.category || "-",
+    contractAmount: deal.amount || 0,
+    contractRange: schedule.contractRange,
+    billingType: deal.billingType || "-",
+    flagsLabel: schedule.flags.join(", "),
+    revenueRule: schedule.revenueRule,
+    dealKey: dealDetailKey(deal),
+  };
+}
+
+function renderRevenueAnalysis(scope) {
+  const analysis = buildRevenueAnalysis(scope);
+  renderRevenueSummary(analysis, scope);
+  renderRevenueMonthlyChart(analysis);
+  renderRevenueBySale(analysis);
+  renderRecurringTarget2026(analysis.recurringTarget2026);
+  renderRevenueDetailTable(analysis.detailRows);
+  renderRevenueExceptionTable(analysis.exceptionRows);
+}
+
+function renderRevenueSummary(analysis, scope) {
+  const scheduledAmount = sum(analysis.selectedEntries, (entry) => entry.amount);
+  const contractAmount = sum(analysis.baseDeals, (deal) => deal.amount);
+  const activeMonths = analysis.monthlyRows.filter((row) => row.amount).length;
+  const recurringActual = sum(analysis.monthlyRows, (row) => row.recurringAmount || 0);
+  const recurringTarget = sum(analysis.monthlyRows, (row) => row.target || 0);
+  const recurringAchievement = recurringTarget ? recurringActual / recurringTarget : null;
+  const cards = [
+    ["Revenue in Period", compactMoney(scheduledAmount), `${monthLabel(scope.months[0] || "")} - ${monthLabel(scope.months[scope.months.length - 1] || "")}`],
+    ["Won / Pre-WON Contracts", analysis.baseDeals.length.toLocaleString("th-TH"), compactMoney(contractAmount)],
+    ["Recurring Achievement", recurringAchievement == null ? "-" : percent(recurringAchievement), `${compactMoney(recurringActual)} / ${compactMoney(recurringTarget)}`],
+    ["Data Checks", analysis.exceptionRows.length.toLocaleString("th-TH"), "ควรตรวจสอบก่อนส่งต่อบัญชี/การเงิน"],
+  ];
+  els.revenueSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card revenue-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderRevenueMonthlyChart(analysis) {
+  const maxAmount = Math.max(1, ...analysis.monthlyRows.flatMap((row) => [row.amount || 0, row.recurringAmount || 0, row.target || 0]));
+  const rows = analysis.monthlyRows.filter((row) => row.amount || row.target || analysis.monthlyRows.length <= 12);
+  els.revenueMonthlyChart.innerHTML = rows.length
+    ? rows
+        .map(
+          (row) => `
+            <div class="revenue-month-row">
+              <div class="lead-week-name">${escapeHtml(monthLabel(row.month))}</div>
+              <div class="revenue-bar-group">
+                <div class="bar-track" title="Recurring target ${money(row.target || 0)}">
+                  <div class="bar target" style="width:${row.target ? Math.max(2, (row.target / maxAmount) * 100) : 0}%"></div>
+                </div>
+                <div class="bar-track" title="Actual recurring ${money(row.recurringAmount || 0)}">
+                  <div class="bar actual" style="width:${row.recurringAmount ? Math.max(2, (row.recurringAmount / maxAmount) * 100) : 0}%"></div>
+                </div>
+              </div>
+              <div class="lead-week-value">
+                <span class="muted">Target ${money(row.target || 0)}</span><br>
+                <span class="muted">Actual ${money(row.recurringAmount || 0)}</span>
+                <span class="achievement-pill revenue-achievement-inline ${achievementClass(row.achievement)}">${row.achievement == null ? "-" : percent(row.achievement)}</span><br>
+                <span class="muted">Total Revenue ${money(row.amount || 0)} · ${row.deals.toLocaleString("th-TH")} deals</span>
+              </div>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="empty">ไม่มี Revenue schedule ในช่วงเวลาที่เลือก</div>`;
+}
+
+function achievementClass(value) {
+  if (value == null) return "neutral";
+  if (value >= 1) return "good";
+  if (value >= 0.8) return "warn";
+  return "danger";
+}
+
+function renderRevenueBySale(analysis) {
+  const maxAmount = Math.max(1, ...analysis.saleRows.map((row) => row.amount));
+  els.revenueBySale.innerHTML = analysis.saleRows.length
+    ? analysis.saleRows
+        .slice(0, 15)
+        .map(
+          (row) => `
+            <div class="rank-row">
+              <div class="rank-name">${escapeHtml(row.saleName)}<br><span class="muted">${escapeHtml(row.group)}</span></div>
+              <div class="progress-track"><div class="progress-fill revenue-fill" style="width:${Math.max(2, (row.amount / maxAmount) * 100)}%"></div></div>
+              <div class="rank-value">${money(row.amount)}<br>${row.dealCount.toLocaleString("th-TH")} deals</div>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="empty">ไม่มี Revenue ตามเงื่อนไขที่เลือก</div>`;
+}
+
+function renderRecurringTarget2026(target) {
+  if (!els.revenueTargetSummary || !els.revenueTargetTable) return;
+  const avgMonthly = target.months.length ? target.total / target.months.length : 0;
+  const activeMonths = target.months.filter((month) => target.monthlyTotals[month]).length;
+  const cards = [
+    ["2026 Recurring Target", compactMoney(target.total), `ฐานจาก Revenue ${target.sourceYear}`],
+    ["Recurring Deals", target.dealCount.toLocaleString("th-TH"), "เฉพาะ Billing = Recurring"],
+    ["Avg Target / Month", compactMoney(avgMonthly), `${activeMonths.toLocaleString("th-TH")} active months`],
+    ["Target Rows", target.rows.length.toLocaleString("th-TH"), "Sale + Type"],
+  ];
+  els.revenueTargetSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card revenue-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+  els.revenueTargetTable.innerHTML = recurringTargetTable(target);
+}
+
+function recurringTargetTable(target) {
+  if (!target.rows.length) return `<div class="empty">ไม่มี recurring revenue ปี ${target.sourceYear} สำหรับประเมิน Target ${target.targetYear}</div>`;
+  const monthHeaders = target.months.map((month) => `<th class="num">${escapeHtml(monthLabel(month).replace(` ${target.targetYear}`, ""))}</th>`).join("");
+  const totalRow = `
+    <tr class="total-row">
+      <td colspan="3"><strong>Total ${target.targetYear}</strong></td>
+      ${target.months.map((month) => `<td class="num"><strong>${money(target.monthlyTotals[month] || 0)}</strong></td>`).join("")}
+      <td class="num"><strong>${money(target.total)}</strong></td>
+      <td class="num">${target.dealCount.toLocaleString("th-TH")}</td>
+    </tr>
+  `;
+  return `
+    <table class="target-table">
+      <thead>
+        <tr>
+          <th>Sale</th>
+          <th>Sale Group</th>
+          <th>Type</th>
+          ${monthHeaders}
+          <th class="num">Total</th>
+          <th class="num">Deals</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${target.rows
+          .map(
+            (row) => `
+              <tr>
+                <td><strong>${escapeHtml(row.saleName)}</strong></td>
+                <td>${escapeHtml(row.group)}</td>
+                <td>${escapeHtml(row.category)}</td>
+                ${target.months.map((month) => `<td class="num">${row.monthly[month] ? money(row.monthly[month]) : "-"}</td>`).join("")}
+                <td class="num"><strong>${money(row.total)}</strong></td>
+                <td class="num">${row.dealCount.toLocaleString("th-TH")}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+        ${totalRow}
+      </tbody>
+    </table>
+  `;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function exportRevenueTargetCsv() {
+  const target = buildRevenueAnalysis(calcScope()).recurringTarget2026;
+  const headers = ["Sale", "Sale Group", "Type", ...target.months.map((month) => monthLabel(month)), "Total", "Deals"];
+  const rows = target.rows.map((row) => [
+    row.saleName,
+    row.group,
+    row.category,
+    ...target.months.map((month) => row.monthly[month] || 0),
+    row.total,
+    row.dealCount,
+  ]);
+  rows.push([
+    `Total ${target.targetYear}`,
+    "",
+    "",
+    ...target.months.map((month) => target.monthlyTotals[month] || 0),
+    target.total,
+    target.dealCount,
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  downloadTextFile(`2026-recurring-target-from-2025-revenue.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+}
+
+function downloadTextFile(fileName, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function renderRevenueDetailTable(detailRows) {
+  const andTerms = els.revenueAndInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
+  const notTerms = els.revenueNotInputs.map((input) => normalizeSearch(input.value)).filter(Boolean);
+  const baseRows = detailRows.filter((row) => revenueRowMatchesAndNotTerms(row, andTerms, notTerms));
+  tableFilterSources.revenue = baseRows;
+  const rows = applyColumnFilters("revenue", baseRows);
+  rows.sort(sortRevenueRowsByTime);
+  els.revenueDetailTable.innerHTML = revenueDetailTable(rows.slice(0, 500));
+}
+
+function revenueRowMatchesAndNotTerms(row, andTerms, notTerms) {
+  const text = revenueSearchText(row);
+  const tokens = revenueSearchTokens(row);
+  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
+  if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
+  return true;
+}
+
+function revenueSearchText(row) {
+  const counting = countingSearchValues(row).join(" ");
+  const risk = riskFilterLabel(row);
+  const expectedCloseDate = displayDate(row.expectedDate);
+  return normalizeSearch(
+    `${row.id || ""} ${row.saleName || ""} ${row.responsible || ""} ${row.group || ""} ${row.company || ""} ${row.dealName || ""} ${row.pipeline || ""} ${row.stage || ""} ${row.rawStage || ""} ${row.dealType || ""} ${row.product || ""} ${row.category || ""} ${row.billingType || ""} ${performanceBucket(row)} ${row.status || ""} ${counting} ${risk} ${row.expectedDate || ""} ${expectedCloseDate} ${row.stageChangeDate || ""} ${row.monthKey || ""} ${row.monthLabel || ""} ${row.revenueDate || ""} ${row.revenueRule || ""} ${row.flagsLabel || ""} ${row.monthPosition || ""} ${money(row.monthlyRevenue || 0)} ${money(row.contractAmount || 0)}`,
+  );
+}
+
+function revenueSearchTokens(row) {
+  const expectedCloseDate = displayDate(row.expectedDate);
+  return new Set(
+    [
+      row.id,
+      row.saleName,
+      row.responsible,
+      row.company,
+      row.dealName,
+      row.pipeline,
+      row.stage,
+      row.rawStage,
+      row.dealType,
+      row.product,
+      row.category,
+      row.status,
+      ...countingSearchValues(row),
+      riskFilterLabel(row),
+      row.expectedDate,
+      expectedCloseDate,
+      row.stageChangeDate,
+      performanceBucket(row),
+      row.monthKey,
+      row.monthLabel,
+      row.revenueDate,
+      row.revenueRule,
+      row.flagsLabel,
+      row.billingType,
+      row.monthPosition,
+      money(row.monthlyRevenue || 0),
+      money(row.contractAmount || 0),
+    ]
+      .map(normalizeSearch)
+      .flatMap((value) => value.split(/[^\p{L}\p{N}]+/u))
+      .filter(Boolean),
+  );
+}
+
+function revenueDetailTable(rows) {
+  return `
+    <table class="revenue-detail-table">
+      <colgroup>
+        <col class="rev-month-col" />
+        <col class="rev-sale-col" />
+        <col class="rev-company-col" />
+        <col class="rev-type-col" />
+        <col class="rev-billing-col" />
+        <col class="rev-contract-col" />
+        <col class="rev-monthly-col" />
+        <col class="rev-contract-amount-col" />
+        <col class="rev-rule-col" />
+        <col class="rev-checks-col" />
+      </colgroup>
+      <thead>
+        <tr>
+          ${revenueHeader("monthLabel", "Revenue Month")}
+          ${revenueHeader("saleName", "Sale")}
+          ${revenueHeader("companyDeal", "Company / Deal", false, "company-cell")}
+          ${revenueHeader("category", "Type")}
+          ${revenueHeader("billingType", "Billing")}
+          ${revenueHeader("contractRange", "Contract")}
+          ${revenueHeader("monthlyRevenue", "Monthly Revenue", true)}
+          ${revenueHeader("contractAmount", "Contract Amount", true)}
+          ${revenueHeader("revenueRule", "Rule")}
+          ${revenueHeader("flags", "Checks")}
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          rows.length
+            ? rows
+                .map(
+                  (row) => `
+                    <tr class="clickable-row" data-deal-key="${escapeHtml(row.dealKey)}">
+                      <td><strong>${escapeHtml(row.monthLabel)}</strong><br><span class="muted">${escapeHtml(row.revenueDate)} | ${escapeHtml(row.monthPosition)}</span></td>
+                      <td><strong>${escapeHtml(row.saleName)}</strong><br><span class="muted">${escapeHtml(row.group || "-")}</span></td>
+                      <td class="company-cell"><strong>${escapeHtml(row.company || "-")}</strong><br><span class="muted">${escapeHtml(row.dealName || "-")}</span></td>
+                      <td>${escapeHtml(row.category)}</td>
+                      <td>${escapeHtml(row.billingType)}</td>
+                      <td>${escapeHtml(row.contractRange)}</td>
+                      <td class="num"><strong>${money(row.monthlyRevenue)}</strong></td>
+                      <td class="num">${money(row.contractAmount)}</td>
+                      <td>${escapeHtml(row.revenueRule)}</td>
+                      <td>${revenueCheckBadge(row.flagsLabel)}</td>
+                    </tr>
+                  `,
+                )
+                .join("")
+            : `<tr><td colspan="10"><div class="empty">ไม่มี Revenue detail ในช่วงเวลาที่เลือก</div></td></tr>`
+        }
+      </tbody>
+    </table>
+  `;
+}
+
+function revenueHeader(key, label, numeric = false, extraClass = "") {
+  const className = [numeric ? "num" : "", extraClass].filter(Boolean).join(" ");
+  return `<th class="${className}"><div class="table-header-tools"><span>${escapeHtml(label)}</span>${columnFilterButton("revenue", key)}</div></th>`;
+}
+
+function revenueCheckBadge(label) {
+  if (!label || label === "Ready") return `<span class="badge good">Ready</span>`;
+  return `<span class="badge warn">${escapeHtml(label)}</span>`;
+}
+
+function renderRevenueExceptionTable(exceptionRows) {
+  els.revenueExceptionTable.innerHTML = exceptionRows.length
+    ? `
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Sale</th>
+            <th class="company-cell">Company / Deal</th>
+            <th>Type</th>
+            <th>Billing</th>
+            <th>Contract</th>
+            <th class="num">Amount</th>
+            <th>Checks</th>
+            <th>Suggested Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${exceptionRows
+            .map(
+              (row) => `
+                <tr class="clickable-row" data-deal-key="${escapeHtml(row.dealKey)}">
+                  <td>${escapeHtml(row.id)}</td>
+                  <td>${escapeHtml(row.saleName)}</td>
+                  <td class="company-cell">${escapeHtml(row.companyDeal)}</td>
+                  <td>${escapeHtml(row.category)}</td>
+                  <td>${escapeHtml(row.billingType)}</td>
+                  <td>${escapeHtml(row.contractRange)}</td>
+                  <td class="num">${money(row.contractAmount)}</td>
+                  <td>${revenueCheckBadge(row.flagsLabel)}</td>
+                  <td>เติม/ตรวจ Contract Start, End, Period หรือ MRR แล้ว Refresh Dashboard</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `
+    : `<div class="empty">ไม่พบรายการที่ต้องตรวจสอบเพิ่มเติม</div>`;
+}
+
 function leadCreatedWeek(deal) {
   return isoWeekKeyFromDate(deal.createdDate);
 }
@@ -3257,6 +4114,8 @@ function dealModalHtml(deal) {
         ${detailLine("Sale Owner", `${escapeHtml(deal.saleName)} <span class="muted">(${escapeHtml(deal.group)})</span>`, true)}
         ${detailLine("Responsible", deal.responsible || "-")}
         ${detailLine("Product", deal.product || "-")}
+        ${detailLine("Billing Type", deal.billingType || "-")}
+        ${detailLine("MRR", deal.mrr ? money(deal.mrr) : "-")}
       </section>
 
       <section class="deal-section">
@@ -3275,6 +4134,9 @@ function dealModalHtml(deal) {
         ${detailLine("Stage Change", deal.stageChangeDate || "-")}
         ${detailLine("Stage Age", deal.stageAgeDays == null ? "-" : `${deal.stageAgeDays.toLocaleString("th-TH")} days`)}
         ${detailLine("Created", deal.createdDate || "-")}
+        ${detailLine("Contract Start", deal.contractStartDate || "-")}
+        ${detailLine("Contract End", deal.contractEndDate || "-")}
+        ${detailLine("Contract Period", deal.contractPeriodMonths ? `${deal.contractPeriodMonths.toLocaleString("th-TH")} months` : "-")}
         ${detailLine("Tracking Month", deal.trackingMonth ? monthLabel(deal.trackingMonth) : "-")}
       </section>
 
@@ -3327,6 +4189,8 @@ function dealRecommendations(deal) {
     if (!items.length) items.push("ไม่มี risk flag หลัก ใช้ติดตามจำนวนเงิน, stage และ expected close ตามรอบ pipeline review");
   }
   if (deal.pipelineGroup && !deal.pipelineGroupMatch) items.push("Pipeline ไม่ตรงกับ Sale Group ตาม Data Mapping ควรตรวจ owner หรือ pipeline");
+  if (deal.status === "won" && !parseDateValue(deal.contractStartDate)) items.push("Revenue Analysis จะใช้วัน fallback หากไม่มี Contract Start Date ควรเติมข้อมูลก่อนส่งต่อบัญชี/การเงิน");
+  if (deal.status === "won" && !parseDateValue(deal.contractEndDate) && !revenuePeriodMonths(deal)) items.push("ยังไม่มี Contract End Date หรือ Contract Period ทำให้ระบบกระจายรายได้แบบเดือนเดียวชั่วคราว");
   if (deal.category === "renew") items.push("เป็น Renew ควรตรวจวันหมดสัญญา/รอบต่ออายุ เพื่อกันหลุดเป้า recurring revenue");
   if (deal.category === "new") items.push("เป็น New ควรดู source, product fit และ stage conversion เพื่อใช้ปรับแผนหา pipeline เพิ่ม");
   return items;
@@ -3485,6 +4349,7 @@ function renderTablesOnly() {
     renderSalesPerformanceCharts(scope);
     renderTransactionTable(scope);
   }
+  if (state.tab === "revenue") renderRevenueAnalysis(scope);
   if (state.tab === "deals") renderDealDetailTable(scope);
   if (state.tab === "leads") renderNewLead();
   if (state.tab === "pipeline") {
@@ -3497,8 +4362,9 @@ function renderTablesOnly() {
 
 function renderTabDescription() {
   const isLeadsTab = state.tab === "leads";
-  const hideKpiTabs = new Set(["deals", "pipeline", "data", "leads"]);
+  const hideKpiTabs = new Set(["revenue", "deals", "pipeline", "data", "leads"]);
   document.body.classList.toggle("is-leads-tab", isLeadsTab);
+  renderCategoryButtons();
   if (els.dashboardFilterShell) els.dashboardFilterShell.hidden = false;
   if (els.periodFilterCard) els.periodFilterCard.hidden = isLeadsTab;
   if (els.leadToolbarCard) els.leadToolbarCard.hidden = !isLeadsTab;
@@ -3507,6 +4373,13 @@ function renderTabDescription() {
   if (!els.tabDescription) return;
   els.tabDescription.hidden = false;
   els.tabDescription.textContent = tabDescriptions[state.tab] || "";
+}
+
+function renderCategoryButtons() {
+  const activeCategory = state.tab === "leads" ? state.leadCategory : state.category;
+  document.querySelectorAll(".segment button[data-category]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.category === activeCategory);
+  });
 }
 
 function render() {
@@ -3521,6 +4394,7 @@ function render() {
   renderTopDealsTable(scope);
   renderDealDetailTable(scope);
   renderNewLead();
+  renderRevenueAnalysis(scope);
   renderSalesPerformanceCharts(scope);
   renderTransactionTable(scope);
   renderRiskSummary(scope);

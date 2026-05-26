@@ -22,6 +22,7 @@
       <nav class="tabs" aria-label="Dashboard tabs">
         <button type="button" class="active" data-tab="overview">Overview</button>
         <button type="button" data-tab="sales">Sales Performance</button>
+        <button type="button" data-tab="revenue">Revenue Analysis</button>
         <button type="button" data-tab="deals">All Deals</button>
         <button type="button" data-tab="pipeline">Pipeline Risk</button>
         <button type="button" data-tab="data">Data Quality</button>
@@ -94,6 +95,13 @@
         <article class="filter-card view-filter-card">
           <div class="filter-card-head">
             <h2>Filter มุมมอง</h2>
+            <div class="category-filter global-category-filter" aria-label="Target category">
+              <div class="segment compact-segment">
+                <button type="button" class="active" data-category="all">รวม</button>
+                <button type="button" data-category="new">New</button>
+                <button type="button" data-category="renew">Renew</button>
+              </div>
+            </div>
           </div>
           <div class="filter-grid view-filter-grid">
             <label>
@@ -126,11 +134,6 @@
                 <input id="showUnmapped" type="checkbox" />
                 รวม No Target
               </label>
-              <div class="segment compact-segment" aria-label="Target category">
-                <button type="button" class="active" data-category="all">รวม</button>
-                <button type="button" data-category="new">New</button>
-                <button type="button" data-category="renew">Renew</button>
-              </div>
             </div>
           </div>
           <div class="filter-grid period-filter-grid">
@@ -180,18 +183,10 @@
               ถึง Week
               <select id="leadEndWeek"></select>
             </label>
-            <label>
+            <label class="lead-search-field">
               ค้นหา Lead
               <input id="leadSearchInput" type="search" placeholder="Sale, บริษัท, ดีล, Stage, Pipeline" />
             </label>
-            <div class="lead-category-filter" aria-label="New Deals category">
-              <span>ประเภท</span>
-              <div class="segment lead-category-segment">
-                <button type="button" class="active" data-lead-category="all">รวม</button>
-                <button type="button" data-lead-category="new">New</button>
-                <button type="button" data-lead-category="renew">Renew</button>
-              </div>
-            </div>
           </div>
         </article>
       </section>
@@ -347,6 +342,88 @@
             <strong id="transactionTotalAmount">฿0</strong>
           </div>
           <div id="transactionTable" class="table-wrap"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-revenue">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Revenue Analysis</h2>
+              <p>กระจายยอด Won / Pre-WON เป็นรายได้รายเดือนตามช่วงสัญญา เพื่อใช้วางแผนกระแสเงินและตรวจสอบต่อ</p>
+            </div>
+          </div>
+          <div id="revenueSummary" class="lead-summary-grid revenue-summary-grid"></div>
+        </article>
+
+        <div class="grid two-col revenue-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Monthly Revenue Schedule</h2>
+                <p>ยอดรายได้ที่ควรรับรู้ในแต่ละเดือนตามช่วงเวลาที่เลือก</p>
+              </div>
+            </div>
+            <div id="revenueMonthlyChart" class="revenue-month-chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Revenue by Sale Owner</h2>
+                <p>ช่วยให้ผู้บริหารเห็น contribution ของแต่ละ Sale ต่อกระแสรายได้</p>
+              </div>
+            </div>
+            <div id="revenueBySale" class="rank-list"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>2026 Recurring Target from 2025 Revenue</h2>
+              <p>ประเมิน Target ปี 2026 จากกระแสรายได้ปี 2025 เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป</p>
+            </div>
+            <button type="button" class="primary-button export-button" id="exportRevenueTargetCsv">Export CSV</button>
+          </div>
+          <div id="revenueTargetSummary" class="lead-summary-grid revenue-target-summary"></div>
+          <div id="revenueTargetTable" class="table-wrap"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Revenue Detail</h2>
+              <p>รายการรายเดือนพร้อมข้อมูลสัญญา สำหรับ reconcile กับฝ่ายบัญชีและการเงิน (ฟังก์ชันค้นหาไม่รวม Contract)</p>
+            </div>
+          </div>
+          <div class="transaction-search-grid">
+            <div class="transaction-search-block">
+              <strong>ค้นหา AND</strong>
+              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 1" />
+              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 2" />
+              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 3" />
+              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 4" />
+            </div>
+            <div class="transaction-search-block">
+              <strong>ไม่รวม NOT</strong>
+              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 1" />
+              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 2" />
+              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 3" />
+              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 4" />
+            </div>
+          </div>
+          <div id="revenueDetailTable" class="table-wrap"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Revenue Data Checks</h2>
+              <p>รายการที่ควรตรวจสอบก่อนใช้เป็นข้อมูลทางบัญชีหรือรายงานผู้บริหาร</p>
+            </div>
+          </div>
+          <div id="revenueExceptionTable" class="table-wrap"></div>
         </article>
       </section>
 
