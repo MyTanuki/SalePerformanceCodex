@@ -2086,6 +2086,34 @@ th.num {
   margin-bottom: 12px;
 }
 
+.revenue-detail-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.revenue-total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid rgba(30, 58, 138, 0.18);
+  border-radius: 999px;
+  background: var(--total-soft);
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.revenue-total-badge strong {
+  color: var(--total);
+  font-size: 15px;
+}
+
 .company-cell {
   max-width: 340px;
 }

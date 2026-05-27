@@ -111,9 +111,9 @@ Pipeline Matching can also be edited in the Setting modal. When matching rules e
 - Sales performance date filtering uses Expected Close Date for pipeline tracking.
 - Revenue Analysis filters deals by view/search/type, then filters the output schedule by the selected Year, Quarter, Month, or Range.
 - Revenue Analysis recognizes `One-time` / `OTC` deals in the contract start month. Recurring deals spread contract value straight-line by month using `Contract Start Date` and `Contract End Date`; if those are incomplete it falls back to `Contract Period (จำนวนเดือน)`, then MRR inference, then a one-month temporary schedule with a data check flag.
-- The 2026 recurring target table uses only `Billing Type = Recurring`, takes monthly revenue from 2025, and shifts each month to the same month in 2026 as a baseline target estimate.
+- The recurring target table uses only `Billing Type = Recurring`, takes monthly revenue from the year before the selected target year, and shifts each month to the same month in the selected year as a baseline target estimate.
 - Monthly Revenue Schedule compares `Actual Recurring Revenue` against the calculated recurring target. Total Revenue is still shown separately so one-time revenue does not inflate recurring achievement.
-- The 2026 recurring target table can be exported to CSV from the `Revenue Analysis` tab.
+- The recurring target table can be exported to CSV from the `Revenue Analysis` tab.
 - New Deals uses Created Date and ISO Week.
 - `New` and `Renew` can be filtered independently.
 

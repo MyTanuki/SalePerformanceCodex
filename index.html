@@ -387,8 +387,8 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <h2>2026 Recurring Target from 2025 Revenue</h2>
-              <p>ประเมิน Target ปี 2026 จากกระแสรายได้ปี 2025 เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป</p>
+              <h2 id="revenueTargetTitle">Recurring Target from Revenue</h2>
+              <p id="revenueTargetDescription">ประเมิน Target จากกระแสรายได้ปีก่อนหน้า เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป</p>
             </div>
             <button type="button" class="primary-button export-button" id="exportRevenueTargetCsv">Export CSV</button>
           </div>
@@ -402,7 +402,10 @@
               <h2>Revenue Detail</h2>
               <p>รายการรายเดือนพร้อมข้อมูลสัญญา สำหรับ reconcile กับฝ่ายบัญชีและการเงิน (ฟังก์ชันค้นหาไม่รวม Contract)</p>
             </div>
-            <button type="button" class="primary-button export-button" id="exportRevenueDetailCsv">Export CSV</button>
+            <div class="revenue-detail-actions">
+              <span class="revenue-total-badge">Monthly Revenue <strong id="revenueDetailMonthlyTotal">฿0</strong></span>
+              <button type="button" class="primary-button export-button" id="exportRevenueDetailCsv">Export CSV</button>
+            </div>
           </div>
           <div class="transaction-search-grid">
             <div class="transaction-search-block">

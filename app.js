@@ -217,10 +217,13 @@ const els = {
   revenueSummary: document.querySelector("#revenueSummary"),
   revenueMonthlyChart: document.querySelector("#revenueMonthlyChart"),
   revenueBySale: document.querySelector("#revenueBySale"),
+  revenueTargetTitle: document.querySelector("#revenueTargetTitle"),
+  revenueTargetDescription: document.querySelector("#revenueTargetDescription"),
   revenueTargetSummary: document.querySelector("#revenueTargetSummary"),
   revenueTargetTable: document.querySelector("#revenueTargetTable"),
   exportRevenueTargetCsv: document.querySelector("#exportRevenueTargetCsv"),
   exportRevenueDetailCsv: document.querySelector("#exportRevenueDetailCsv"),
+  revenueDetailMonthlyTotal: document.querySelector("#revenueDetailMonthlyTotal"),
   revenueExpectedFallback: document.querySelector("#revenueExpectedFallback"),
   revenueDetailTable: document.querySelector("#revenueDetailTable"),
   revenueExceptionTable: document.querySelector("#revenueExceptionTable"),
@@ -3389,7 +3392,7 @@ function buildRevenueAnalysis(scope) {
   const baseDeals = filteredDeals(scope, { period: false, countingIncluded: true })
     .filter((deal) => deal.status === "won");
   const schedules = baseDeals.map(revenueScheduleForDeal);
-  const recurringTarget2026 = buildRecurringTarget2026(schedules);
+  const recurringTarget = buildRecurringTargetFromRevenue(schedules, revenueTargetYearFromScope(scope));
   const selectedEntries = schedules
     .flatMap((schedule) =>
       schedule.entries.map((entry) => ({
@@ -3401,7 +3404,7 @@ function buildRevenueAnalysis(scope) {
   const monthlyRows = scope.months.map((month) => {
     const entries = selectedEntries.filter((entry) => entry.monthKey === month);
     const recurringEntries = entries.filter((entry) => isRecurringBilling(entry.deal.billingType));
-    const target = recurringTarget2026.monthlyTotals[month] || 0;
+    const target = recurringTarget.monthlyTotals[month] || 0;
     const recurringAmount = roundMoney(sum(recurringEntries, (entry) => entry.amount));
     return {
       month,
@@ -3447,7 +3450,7 @@ function buildRevenueAnalysis(scope) {
     saleRows,
     detailRows,
     exceptionRows,
-    recurringTarget2026,
+    recurringTarget,
   };
 }
 
@@ -3455,9 +3458,16 @@ function targetYearMonths(year) {
   return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
 }
 
-function buildRecurringTarget2026(schedules) {
-  const sourceYear = 2025;
-  const targetYear = 2026;
+function revenueTargetYearFromScope(scope) {
+  if (state.periodType === "year") return Number(state.periodYear) || Number(currentYearKey());
+  if (state.periodType === "quarter") return Number(String(state.periodQuarter).slice(0, 4)) || Number(currentYearKey());
+  if (state.periodType === "month") return Number(String(state.periodMonth).slice(0, 4)) || Number(currentYearKey());
+  const firstMonth = scope.months[0] || state.startMonth || currentMonthKey();
+  return Number(String(firstMonth).slice(0, 4)) || Number(currentYearKey());
+}
+
+function buildRecurringTargetFromRevenue(schedules, targetYear) {
+  const sourceYear = targetYear - 1;
   const targetMonths = targetYearMonths(targetYear);
   const targetMonthSet = new Set(targetMonths);
   const rowsByKey = new Map();
@@ -3575,7 +3585,7 @@ function renderRevenueAnalysis(scope) {
   renderRevenueSummary(analysis, scope);
   renderRevenueMonthlyChart(analysis);
   renderRevenueBySale(analysis);
-  renderRecurringTarget2026(analysis.recurringTarget2026);
+  renderRecurringTargetFromRevenue(analysis.recurringTarget);
   renderRevenueDetailTable(analysis.detailRows);
   renderRevenueExceptionTable(analysis.exceptionRows);
 }
@@ -3661,12 +3671,16 @@ function renderRevenueBySale(analysis) {
     : `<div class="empty">ไม่มี Revenue ตามเงื่อนไขที่เลือก</div>`;
 }
 
-function renderRecurringTarget2026(target) {
+function renderRecurringTargetFromRevenue(target) {
   if (!els.revenueTargetSummary || !els.revenueTargetTable) return;
+  if (els.revenueTargetTitle) els.revenueTargetTitle.textContent = `${target.targetYear} Recurring Target from ${target.sourceYear} Revenue`;
+  if (els.revenueTargetDescription) {
+    els.revenueTargetDescription.textContent = `ประเมิน Target ปี ${target.targetYear} จากกระแสรายได้ปี ${target.sourceYear} เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป`;
+  }
   const avgMonthly = target.months.length ? target.total / target.months.length : 0;
   const activeMonths = target.months.filter((month) => target.monthlyTotals[month]).length;
   const cards = [
-    ["2026 Recurring Target", compactMoney(target.total), `ฐานจาก Revenue ${target.sourceYear}`],
+    [`${target.targetYear} Recurring Target`, compactMoney(target.total), `ฐานจาก Revenue ${target.sourceYear}`],
     ["Recurring Deals", target.dealCount.toLocaleString("th-TH"), "เฉพาะ Billing = Recurring"],
     ["Avg Target / Month", compactMoney(avgMonthly), `${activeMonths.toLocaleString("th-TH")} active months`],
     ["Target Rows", target.rows.length.toLocaleString("th-TH"), "Sale + Type"],
@@ -3735,7 +3749,7 @@ function csvCell(value) {
 }
 
 function exportRevenueTargetCsv() {
-  const target = buildRevenueAnalysis(calcScope()).recurringTarget2026;
+  const target = buildRevenueAnalysis(calcScope()).recurringTarget;
   const headers = ["Sale", "Sale Group", "Type", ...target.months.map((month) => monthLabel(month)), "Total", "Deals"];
   const rows = target.rows.map((row) => [
     row.saleName,
@@ -3754,7 +3768,7 @@ function exportRevenueTargetCsv() {
     target.dealCount,
   ]);
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-  downloadTextFile(`2026-recurring-target-from-2025-revenue.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+  downloadTextFile(`${target.targetYear}-recurring-target-from-${target.sourceYear}-revenue.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
 }
 
 function exportRevenueDetailCsv() {
@@ -3813,6 +3827,7 @@ function downloadTextFile(fileName, content, mimeType) {
 
 function renderRevenueDetailTable(detailRows) {
   const rows = filteredRevenueDetailRows(detailRows);
+  if (els.revenueDetailMonthlyTotal) els.revenueDetailMonthlyTotal.textContent = money(sum(rows, (row) => row.monthlyRevenue || 0));
   els.revenueDetailTable.innerHTML = revenueDetailTable(rows.slice(0, 500));
 }
 
