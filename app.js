@@ -151,6 +151,9 @@ const els = {
   themeToggleButton: null,
   settingsModal: document.querySelector("#settingsModal"),
   closeSettings: document.querySelector("#closeSettings"),
+  fieldInfoModal: document.querySelector("#fieldInfoModal"),
+  closeFieldInfo: document.querySelector("#closeFieldInfo"),
+  fieldInfoContent: document.querySelector("#fieldInfoContent"),
   dealModal: document.querySelector("#dealModal"),
   closeDealModal: document.querySelector("#closeDealModal"),
   dealModalTitle: document.querySelector("#dealModalTitle"),
@@ -1207,11 +1210,17 @@ function initFilters() {
   document.addEventListener("click", (event) => {
     const settingsButton = event.target.closest("#openSettings");
     if (settingsButton) openSettings();
+    const fieldInfoButton = event.target.closest("#openFieldInfo");
+    if (fieldInfoButton) openFieldInfo();
   });
   els.closeSettings.addEventListener("click", closeSettings);
+  els.closeFieldInfo.addEventListener("click", closeFieldInfo);
   els.closeDealModal.addEventListener("click", closeDealModal);
   els.settingsModal.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettings();
+  });
+  els.fieldInfoModal.addEventListener("click", (event) => {
+    if (event.target === els.fieldInfoModal) closeFieldInfo();
   });
   els.dealModal.addEventListener("click", (event) => {
     if (event.target === els.dealModal) closeDealModal();
@@ -1220,6 +1229,7 @@ function initFilters() {
     if (event.key === "Escape") closeWeekSelects();
     if (event.key !== "Escape") return;
     if (!els.dealModal.hidden) closeDealModal();
+    if (!els.fieldInfoModal.hidden) closeFieldInfo();
     if (!els.settingsModal.hidden) closeSettings();
   });
   document.addEventListener("click", (event) => {
@@ -1466,8 +1476,206 @@ function closeSettings() {
   els.settingsModal.hidden = true;
 }
 
+function openFieldInfo() {
+  renderFieldInfoSummary();
+  els.fieldInfoModal.hidden = false;
+  els.closeFieldInfo.focus();
+}
+
+function closeFieldInfo() {
+  els.fieldInfoModal.hidden = true;
+}
+
 function closeDealModal() {
   els.dealModal.hidden = true;
+}
+
+function fieldCheckRows() {
+  const rows = [];
+  if (Array.isArray(dashboardData.dealDetails)) rows.push(...dashboardData.dealDetails);
+  if (Array.isArray(dashboardData.openDeals)) rows.push(...dashboardData.openDeals);
+  return rows;
+}
+
+function hasFieldValue(key) {
+  return fieldCheckRows().some((row) => {
+    const value = row?.[key];
+    if (typeof value === "number") return Number.isFinite(value) && value !== 0;
+    return cleanText(value) !== "";
+  });
+}
+
+function hasPositiveFieldValue(key) {
+  return fieldCheckRows().some((row) => Number(row?.[key] || 0) > 0);
+}
+
+function hasAnyDealWithStatus(status) {
+  return fieldCheckRows().some((row) => cleanText(row?.status).toLowerCase() === status);
+}
+
+function hasTargetData() {
+  return (dashboardData.sales || []).some((sale) => {
+    if (sale.hasTarget) return true;
+    const annual = sale.targetAnnual || {};
+    if (Number(annual.total || 0) > 0 || Number(annual.new || 0) > 0 || Number(annual.renew || 0) > 0) return true;
+    return Object.values(sale.monthly || {}).some((month) => Number(month?.total || 0) > 0);
+  });
+}
+
+function hasMappingData(kind) {
+  return Number(mappingCounts(activeMappings())[kind] || 0) > 0;
+}
+
+function hasAnyPipelineRule() {
+  return Number(mappingCounts(activeMappings()).pipelineRules || 0) > 0;
+}
+
+function fieldRequirementGroups() {
+  const saleOwner = () => hasFieldValue("saleName") || hasFieldValue("responsible");
+  const dealTitle = () => hasFieldValue("company") || hasFieldValue("dealName");
+  const amount = () => hasPositiveFieldValue("amount") || hasPositiveFieldValue("forecastAmount");
+  const category = () => hasFieldValue("category") || hasFieldValue("dealType") || hasFieldValue("rawDealType");
+
+  return [
+    {
+      tab: "Overview",
+      fields: [
+        ["Sale Target", hasTargetData],
+        ["Sale / Responsible", saleOwner],
+        ["Sale Group", () => hasFieldValue("group")],
+        ["Company / Deal", dealTitle],
+        ["Income / Amount", amount],
+        ["Stage", () => hasFieldValue("stage") || hasFieldValue("rawStage")],
+        ["Pipeline", () => hasFieldValue("pipeline")],
+        ["Deal Type (New/Renew)", category],
+        ["Expected Close Date", () => hasFieldValue("expectedDate")],
+      ],
+    },
+    {
+      tab: "Sales Performance",
+      fields: [
+        ["Sale Target", hasTargetData],
+        ["Sale / Responsible", saleOwner],
+        ["Sale Group", () => hasFieldValue("group")],
+        ["Won / Pre-WON Stage", () => hasAnyDealWithStatus("won")],
+        ["Lost / Pre-LOST Stage", () => hasAnyDealWithStatus("lost")],
+        ["Deal Type (New/Renew)", category],
+        ["Expected Close Date", () => hasFieldValue("expectedDate")],
+        ["Income / Amount", amount],
+        ["Pipeline Matching", hasAnyPipelineRule],
+      ],
+    },
+    {
+      tab: "Revenue Analysis",
+      fields: [
+        ["Sale / Responsible", saleOwner],
+        ["Company / Deal", dealTitle],
+        ["Won / Pre-WON Stage", () => hasAnyDealWithStatus("won")],
+        ["Billing Type", () => hasFieldValue("billingType")],
+        ["Contract Start Date", () => hasFieldValue("contractStartDate")],
+        ["Contract End Date", () => hasFieldValue("contractEndDate")],
+        ["Contract Period", () => hasPositiveFieldValue("contractPeriodMonths")],
+        ["MRR", () => hasPositiveFieldValue("mrr")],
+        ["Income / Contract Amount", amount],
+        ["Expected Close Date (Fallback)", () => hasFieldValue("expectedDate")],
+      ],
+    },
+    {
+      tab: "All Deals",
+      fields: [
+        ["ID", () => hasFieldValue("id")],
+        ["Sale / Responsible", saleOwner],
+        ["Sale Group", () => hasFieldValue("group")],
+        ["Company / Deal", dealTitle],
+        ["Deal Type (New/Renew)", category],
+        ["Stage", () => hasFieldValue("stage") || hasFieldValue("rawStage")],
+        ["Pipeline", () => hasFieldValue("pipeline")],
+        ["Created Date", () => hasFieldValue("createdDate")],
+        ["Expected Close Date", () => hasFieldValue("expectedDate")],
+        ["Income / Amount", amount],
+      ],
+    },
+    {
+      tab: "Pipeline Risk",
+      fields: [
+        ["Open Stage", () => hasAnyDealWithStatus("open")],
+        ["Sale / Responsible", saleOwner],
+        ["Sale Group", () => hasFieldValue("group")],
+        ["Pipeline", () => hasFieldValue("pipeline")],
+        ["Expected Close Date", () => hasFieldValue("expectedDate")],
+        ["Stage Change Date", () => hasFieldValue("stageChangeDate")],
+        ["Income / Amount", amount],
+      ],
+    },
+    {
+      tab: "Data Quality",
+      fields: [
+        ["Stage Mapping", () => hasMappingData("stages")],
+        ["Deal Type Mapping", () => hasMappingData("dealTypes")],
+        ["Sales Mapping", () => hasMappingData("sales")],
+        ["Pipeline Matching", hasAnyPipelineRule],
+        ["Pipeline", () => hasFieldValue("pipeline")],
+        ["Stage", () => hasFieldValue("stage") || hasFieldValue("rawStage")],
+        ["Responsible", () => hasFieldValue("responsible")],
+        ["Deal Type", () => hasFieldValue("dealType") || hasFieldValue("rawDealType")],
+        ["Expected Close Date", () => hasFieldValue("expectedDate")],
+      ],
+    },
+    {
+      tab: "New Deals",
+      fields: [
+        ["Created Date", () => hasFieldValue("createdDate")],
+        ["Sale / Responsible", saleOwner],
+        ["Sale Group", () => hasFieldValue("group")],
+        ["Company / Deal", dealTitle],
+        ["Deal Type (New/Renew)", category],
+        ["Stage", () => hasFieldValue("stage") || hasFieldValue("rawStage")],
+        ["Pipeline", () => hasFieldValue("pipeline")],
+        ["Income / Amount", amount],
+      ],
+    },
+  ];
+}
+
+function renderFieldInfoSummary() {
+  els.fieldInfoContent.innerHTML = fieldRequirementGroups()
+    .map(
+      (group) => `
+        <section class="field-info-section">
+          <h3>${escapeHtml(group.tab)}</h3>
+          <table class="field-info-table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th class="status-col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${group.fields
+                .map(([label, check]) => {
+                  const ok = Boolean(check());
+                  return `
+                    <tr>
+                      <td>${escapeHtml(label)}</td>
+                      <td class="status-col">
+                        <span class="field-check ${ok ? "ok" : "missing"}" aria-label="${ok ? "Checked" : "Cross"}">
+                          ${ok ? "✓" : "×"}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </section>
+      `,
+    )
+    .join("");
+}
+
+function hasMissingFieldRequirements() {
+  return fieldRequirementGroups().some((group) => group.fields.some(([, check]) => !check()));
 }
 
 function setUploadStatus(message, tone = "") {
@@ -1697,11 +1905,19 @@ function renderMeta() {
     timeStyle: "short",
   });
   const isDark = document.documentElement.dataset.theme === "dark";
+  const hasMissingFields = hasMissingFieldRequirements();
   els.metaBox.innerHTML = `
     <button type="button" class="settings-button" id="openSettings" aria-label="Open settings">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"></path>
         <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.05.05a2.1 2.1 0 1 1-2.97 2.97l-.05-.05a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65V21.4a2.1 2.1 0 1 1-4.2 0v-.08A1.8 1.8 0 0 0 8.43 19.7a1.8 1.8 0 0 0-1.98.36l-.05.05a2.1 2.1 0 1 1-2.97-2.97l.05-.05a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.09H2.1a2.1 2.1 0 1 1 0-4.2h.08A1.8 1.8 0 0 0 3.8 8.73a1.8 1.8 0 0 0-.36-1.98l-.05-.05A2.1 2.1 0 1 1 6.36 3.73l.05.05a1.8 1.8 0 0 0 1.98.36A1.8 1.8 0 0 0 9.48 2.5V2.1a2.1 2.1 0 1 1 4.2 0v.08a1.8 1.8 0 0 0 1.09 1.65 1.8 1.8 0 0 0 1.98-.36l.05-.05a2.1 2.1 0 1 1 2.97 2.97l-.05.05a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.09h.39a2.1 2.1 0 1 1 0 4.2h-.08A1.8 1.8 0 0 0 19.4 15Z"></path>
+      </svg>
+    </button>
+    <button type="button" class="info-button ${hasMissingFields ? "has-missing-fields" : ""}" id="openFieldInfo" aria-label="${hasMissingFields ? "Open field information, missing fields found" : "Open field information"}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M12 11v5"></path>
+        <path d="M12 8h.01"></path>
       </svg>
     </button>
     <button type="button" class="theme-toggle-button" id="themeToggle" aria-label="Toggle dark mode" aria-pressed="${isDark}">
@@ -1814,6 +2030,7 @@ async function handleCsvRefresh() {
     renderFilterVisibility();
     render();
     if (!els.settingsModal.hidden) renderPipelineMatchingSettings();
+    if (!els.fieldInfoModal.hidden) renderFieldInfoSummary();
     setUploadStatus(`Refresh สำเร็จ: ${statusParts.join(" | ")}`, "success");
   } catch (error) {
     setUploadStatus(error.message || "ไม่สามารถอ่านไฟล์นี้ได้", "error");

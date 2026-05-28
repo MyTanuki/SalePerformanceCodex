@@ -75,6 +75,22 @@
         </section>
       </div>
 
+      <div class="modal-backdrop" id="fieldInfoModal" hidden>
+        <section class="field-info-modal" role="dialog" aria-modal="true" aria-labelledby="fieldInfoTitle">
+          <div class="modal-head">
+            <div>
+              <p class="eyebrow">Data Field Check</p>
+              <h2 id="fieldInfoTitle">Information</h2>
+              <p>ตรวจสอบ Field สำคัญที่ใช้แสดงผลในแต่ละ Tab จากข้อมูลที่โหลดอยู่ในระบบ</p>
+            </div>
+            <button type="button" class="icon-button" id="closeFieldInfo" aria-label="Close information">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div id="fieldInfoContent" class="field-info-content"></div>
+        </section>
+      </div>
+
       <div class="modal-backdrop" id="dealModal" hidden>
         <section class="deal-modal" role="dialog" aria-modal="true" aria-labelledby="dealModalTitle">
           <div class="modal-head">
