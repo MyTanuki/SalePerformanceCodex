@@ -2761,7 +2761,7 @@ function renderCategoryMix(scope) {
       );
       const achievement = target ? actual / target : actual > 0 ? 1 : 0;
       return `
-        <div class="mix-card">
+        <div class="mix-card ${category}">
           <strong>${category === "new" ? "New Sales" : "Renewal"}</strong>
           <div class="progress-track">
             <div class="progress-fill" style="width:${Math.min(140, achievement * 100)}%"></div>
@@ -2934,7 +2934,7 @@ function renderStackedPerformanceChart(container, rows, variant) {
     ...rows.map((row) => Math.max(row.target, sum(visibleKeys, (key) => row[key]))),
   );
   container.innerHTML = `
-    <div class="chart-legend-inline">
+    <div class="chart-legend-inline ${variant}">
       <span class="legend-target">Target</span>
       ${visibleKeys.map((key) => `<span class="legend-${key}">${escapeHtml(statusLabel(key))}</span>`).join("")}
     </div>
@@ -3059,7 +3059,7 @@ function renderCumulativePerformanceChart(scope) {
     })
     .join("");
   els.cumulativeSalesChart.innerHTML = `
-    <div class="chart-legend-inline">
+    <div class="chart-legend-inline total">
       <span class="legend-target-line">Target สะสม</span>
       ${visibleKeys.map((key) => `<span class="legend-${key}">${escapeHtml(statusLabel(key))}</span>`).join("")}
     </div>

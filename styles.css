@@ -1528,6 +1528,24 @@ body.is-leads-tab .kpi-grid {
   font-size: 16px;
 }
 
+.mix-card.renew {
+  border-color: rgba(22, 101, 52, 0.26);
+  background: var(--kpi-renew-bg);
+}
+
+.mix-card.new {
+  border-color: rgba(88, 28, 135, 0.24);
+  background: var(--kpi-new-bg);
+}
+
+.mix-card.renew .progress-fill {
+  background: var(--renew);
+}
+
+.mix-card.new .progress-fill {
+  background: var(--new-sale);
+}
+
 .status-bars {
   display: flex;
   height: 28px;
@@ -1645,6 +1663,18 @@ body.is-leads-tab .kpi-grid {
   background: var(--total);
 }
 
+.chart-legend-inline.renew .legend-target::before {
+  color: var(--renew);
+}
+
+.chart-legend-inline.new .legend-target::before {
+  color: var(--new-sale);
+}
+
+.chart-legend-inline.total .legend-target::before {
+  color: var(--total);
+}
+
 .chart-legend-inline .legend-won::before,
 .stage-won,
 .cum-won {
@@ -1678,6 +1708,82 @@ body.is-leads-tab .kpi-grid {
 .cum-lost {
   background: var(--lost);
   fill: var(--lost);
+}
+
+.chart-legend-inline.renew .legend-won::before,
+.renew .stage-won {
+  background: var(--renew);
+  fill: var(--renew);
+}
+
+.chart-legend-inline.renew .legend-commit::before,
+.renew .stage-commit {
+  background: #14b8a6;
+  fill: #14b8a6;
+}
+
+.chart-legend-inline.renew .legend-upside::before,
+.renew .stage-upside {
+  background: #99f6e4;
+  fill: #99f6e4;
+}
+
+.chart-legend-inline.renew .legend-open::before,
+.renew .stage-open {
+  background: rgba(22, 101, 52, 0.28);
+  fill: rgba(22, 101, 52, 0.28);
+}
+
+.chart-legend-inline.new .legend-won::before,
+.new .stage-won {
+  background: var(--new-sale);
+  fill: var(--new-sale);
+}
+
+.chart-legend-inline.new .legend-commit::before,
+.new .stage-commit {
+  background: #7e22ce;
+  fill: #7e22ce;
+}
+
+.chart-legend-inline.new .legend-upside::before,
+.new .stage-upside {
+  background: #c084fc;
+  fill: #c084fc;
+}
+
+.chart-legend-inline.new .legend-open::before,
+.new .stage-open {
+  background: rgba(107, 33, 168, 0.28);
+  fill: rgba(107, 33, 168, 0.28);
+}
+
+.chart-legend-inline.total .legend-won::before,
+.total .stage-won,
+.cumulative-chart .cum-won {
+  background: var(--total);
+  fill: var(--total);
+}
+
+.chart-legend-inline.total .legend-commit::before,
+.total .stage-commit,
+.cumulative-chart .cum-commit {
+  background: #1d4ed8;
+  fill: #1d4ed8;
+}
+
+.chart-legend-inline.total .legend-upside::before,
+.total .stage-upside,
+.cumulative-chart .cum-upside {
+  background: #60a5fa;
+  fill: #60a5fa;
+}
+
+.chart-legend-inline.total .legend-open::before,
+.total .stage-open,
+.cumulative-chart .cum-open {
+  background: rgba(30, 58, 138, 0.24);
+  fill: rgba(30, 58, 138, 0.24);
 }
 
 .performance-row-list {
