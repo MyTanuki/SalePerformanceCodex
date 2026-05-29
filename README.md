@@ -16,7 +16,8 @@ sale-performance-dashboard/
     DEAL_*.csv                Sample/source deal CSV, not auto-loaded
   scripts/
     preview-server.js         Local static file server
-    build-dashboard-data.js   Optional offline data builder
+    revenue-logic.js          Pure revenue recognition and recurring target logic
+    test-revenue-logic.js     Node tests for revenue logic
 ```
 
 ## Run Offline Preview
@@ -34,6 +35,16 @@ http://127.0.0.1:4174/
 ```
 
 Use a local server instead of opening `index.html` directly so the browser can fetch files from `./data`.
+
+## Run Tests
+
+Revenue recognition and recurring target logic is isolated in `scripts/revenue-logic.js` and can be checked with:
+
+```powershell
+node .\scripts\test-revenue-logic.js
+```
+
+The test covers one-time/OTC recognition, recurring monthly allocation, missing contract start fallback, MRR mismatch checks, and recurring target rollover from the previous year.
 
 ## Data Loading
 
@@ -109,26 +120,10 @@ Pipeline Matching can also be edited in the Setting modal. When matching rules e
 - `Pre-WON` and `Won` are treated as won.
 - `Pre-LOST` and `Lost` are treated as lost.
 - Sales performance date filtering uses Expected Close Date for pipeline tracking.
-- Revenue Analysis filters deals by view/search/type, then filters the output schedule by the selected Year, Quarter, Month, or Range.
+- Revenue Analysis actual/detail rows filter deals by view/search/type, then filter the output schedule by the selected Year, Quarter, Month, or Range. Recurring Target follows year/group/sale/New-Renew counting scope but ignores keyword search and detail AND/NOT search.
 - Revenue Analysis recognizes `One-time` / `OTC` deals in the contract start month. Recurring deals spread contract value straight-line by month using `Contract Start Date` and `Contract End Date`; if those are incomplete it falls back to `Contract Period (จำนวนเดือน)`, then MRR inference, then a one-month temporary schedule with a data check flag.
 - The recurring target table uses only `Billing Type = Recurring`, takes monthly revenue from the year before the selected target year, and shifts each month to the same month in the selected year as a baseline target estimate.
 - Monthly Revenue Schedule compares `Actual Recurring Revenue` against the calculated recurring target. Total Revenue is still shown separately so one-time revenue does not inflate recurring achievement.
 - The recurring target table can be exported to CSV from the `Revenue Analysis` tab.
 - New Deals uses Created Date and ISO Week.
 - `New` and `Renew` can be filtered independently.
-
-## Optional Offline Build
-
-The app can also rebuild `data/dashboard-data.js` from CSV files:
-
-```powershell
-node .\scripts\build-dashboard-data.js
-```
-
-Optional source paths:
-
-```powershell
-node .\scripts\build-dashboard-data.js "C:\Temp\DEAL_20260506_2e04b49b_69fabfc019c48.csv" "C:\path\to\Sale Target.csv" "C:\path\to\Stage Mapping.csv"
-```
-
-The current app is designed to start empty, so use this builder only when you intentionally want to pre-generate dashboard data.

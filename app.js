@@ -1066,7 +1066,7 @@ function initFilters() {
       els.leadEndWeek.value = state.leadEndWeek;
     }
     syncWeekSelectControls();
-    renderTablesOnly();
+    renderFilteredView();
   });
   els.leadEndWeek.addEventListener("change", () => {
     state.leadEndWeek = els.leadEndWeek.value;
@@ -1075,11 +1075,11 @@ function initFilters() {
       els.leadStartWeek.value = state.leadStartWeek;
     }
     syncWeekSelectControls();
-    renderTablesOnly();
+    renderFilteredView();
   });
   els.leadSearchInput.addEventListener("input", () => {
     state.leadSearch = els.leadSearchInput.value;
-    if (state.tab === "leads") renderTablesOnly();
+    if (state.tab === "leads") renderFilteredView();
   });
   els.groupSelect.addEventListener("change", () => {
     state.group = els.groupSelect.value;
@@ -1092,7 +1092,7 @@ function initFilters() {
   });
   els.searchInput.addEventListener("input", () => {
     state.search = els.searchInput.value;
-    renderTablesOnly();
+    renderFilteredView();
   });
   els.showUnmapped.addEventListener("change", () => {
     state.showUnmapped = els.showUnmapped.checked;
@@ -1105,7 +1105,7 @@ function initFilters() {
       if (state.tab === "leads") {
         state.leadCategory = button.dataset.category;
         renderCategoryButtons();
-        renderTablesOnly();
+        renderFilteredView();
         return;
       }
       state.category = button.dataset.category;
@@ -1120,34 +1120,33 @@ function initFilters() {
       button.classList.add("active");
       state.tab = button.dataset.tab;
       document.querySelector(`#tab-${state.tab}`).classList.add("active");
-      renderTabDescription();
-      renderTablesOnly();
+      renderFilteredView();
     });
   });
   els.salesStatusFilters.querySelectorAll("input[data-sales-status]").forEach((input) => {
     input.addEventListener("change", () => {
       state.statusFilters[input.dataset.salesStatus] = input.checked;
-      renderTablesOnly();
+      renderFilteredView();
     });
   });
   [...els.transactionAndInputs, ...els.transactionNotInputs].forEach((input) => {
     input.addEventListener("input", () => {
-      if (state.tab === "sales") renderTablesOnly();
+      if (state.tab === "sales") renderFilteredView();
     });
   });
   [...els.allDealsAndInputs, ...els.allDealsNotInputs].forEach((input) => {
     input.addEventListener("input", () => {
-      if (state.tab === "deals") renderTablesOnly();
+      if (state.tab === "deals") renderFilteredView();
     });
   });
   [...els.revenueAndInputs, ...els.revenueNotInputs].forEach((input) => {
     input.addEventListener("input", () => {
-      if (state.tab === "revenue") renderTablesOnly();
+      if (state.tab === "revenue") renderFilteredView();
     });
   });
   els.revenueExpectedFallback?.addEventListener("change", () => {
     state.revenueExpectedFallback = els.revenueExpectedFallback.checked;
-    if (state.tab === "revenue") renderTablesOnly();
+    if (state.tab === "revenue") renderFilteredView();
   });
   els.transactionTable.addEventListener("click", (event) => {
     const sortButton = event.target.closest("[data-transaction-sort]");
@@ -1158,7 +1157,7 @@ function initFilters() {
       } else {
         state.transactionSort = { key, dir: key === "amount" ? "desc" : "asc" };
       }
-      renderTablesOnly();
+      renderFilteredView();
       return;
     }
     const dealRow = event.target.closest("[data-deal-key]");
@@ -1173,7 +1172,7 @@ function initFilters() {
       } else {
         state.dealDetailSort = { key, dir: ["amount", "forecastAmount", "stageAgeDays"].includes(key) ? "desc" : "asc" };
       }
-      renderTablesOnly();
+      renderFilteredView();
       return;
     }
     const dealRow = event.target.closest("[data-deal-key]");
@@ -3210,7 +3209,7 @@ function openColumnFilter(tableKey, key, anchor) {
   popover.querySelector("[data-column-filter-clear]")?.addEventListener("click", () => {
     delete state.columnFilters[tableKey][key];
     closeColumnFilter();
-    renderTablesOnly();
+    renderFilteredView();
   });
   popover.querySelector("[data-column-filter-close]")?.addEventListener("click", closeColumnFilter);
   popover.querySelector("[data-column-filter-apply]")?.addEventListener("click", () => {
@@ -3221,7 +3220,7 @@ function openColumnFilter(tableKey, key, anchor) {
       state.columnFilters[tableKey][key] = checked;
     }
     closeColumnFilter();
-    renderTablesOnly();
+    renderFilteredView();
   });
 }
 
@@ -3454,162 +3453,62 @@ function dealDetailHeader(key, label, numeric = false, extraClass = "") {
   return `<th class="${className}"><div class="table-header-tools"><button type="button" class="sort-button" data-deal-detail-sort="${key}">${escapeHtml(label)} ${icon}</button>${columnFilterButton("allDeals", key)}</div></th>`;
 }
 
+const revenueLogic = window.RevenueLogic.createRevenueLogic({
+  parseDateValue,
+  parsePositiveInt,
+  parseMoneyValue,
+  roundMoney,
+  normalizeName,
+  monthEndDate,
+  addMonths,
+  monthDiffInclusive,
+  monthRange,
+  money,
+  sum,
+  dealDetailKey,
+  getRevenueExpectedFallback: () => state.revenueExpectedFallback,
+});
+
 function revenueDateParts(...values) {
-  for (const value of values) {
-    const parsed = parseDateValue(value);
-    if (parsed) return parsed;
-  }
-  return null;
+  return revenueLogic.revenueDateParts(...values);
 }
 
 function revenuePeriodMonths(deal) {
-  return Number(deal.contractPeriodMonths) || parsePositiveInt(deal.contractPeriodMonths);
+  return revenueLogic.revenuePeriodMonths(deal);
 }
 
 function isOneTimeBilling(value) {
-  const text = normalizeName(value);
-  const compact = text.replace(/\s+/g, "");
-  return compact === "onetime" || compact === "otc" || text.includes("one time") || text.includes("one off") || text.includes("จายครงเดยว") || text.includes("ครงเดยว");
+  return revenueLogic.isOneTimeBilling(value);
 }
 
 function isRecurringBilling(value) {
-  const text = normalizeName(value);
-  return text.includes("recurring") || text.includes("subscription") || text.includes("renewal") || text.includes("รายเดอน") || text.includes("ตออาย");
+  return revenueLogic.isRecurringBilling(value);
 }
 
 function allocateRevenueAmount(amount, monthsCount) {
-  if (!monthsCount) return [];
-  const sign = amount < 0 ? -1 : 1;
-  const cents = Math.round(Math.abs(amount || 0) * 100);
-  const base = Math.floor(cents / monthsCount);
-  const remainder = cents % monthsCount;
-  return Array.from({ length: monthsCount }, (_, index) => sign * (base + (index < remainder ? 1 : 0)) / 100);
+  return revenueLogic.allocateRevenueAmount(amount, monthsCount);
 }
 
 function revenueScheduleForDeal(deal) {
-  const amount = roundMoney(Number(deal.amount) || parseMoneyValue(deal.amount));
-  const contractStart = parseDateValue(deal.contractStartDate);
-  const expectedStart = parseDateValue(deal.expectedDate);
-  const fallbackStart = state.revenueExpectedFallback
-    ? revenueDateParts(deal.expectedDate, deal.startDate, deal.stageChangeDate, deal.createdDate)
-    : revenueDateParts(deal.startDate, deal.stageChangeDate, deal.expectedDate, deal.createdDate);
-  const start = contractStart || fallbackStart;
-  const end = parseDateValue(deal.contractEndDate);
-  const period = revenuePeriodMonths(deal);
-  const mrr = Number(deal.mrr) || parseMoneyValue(deal.mrr);
-  const flags = [];
+  return revenueLogic.revenueScheduleForDeal(deal);
+}
 
-  if (!amount) flags.push("Zero contract amount");
-  if (!contractStart) {
-    flags.push("Missing contract start date");
-    if (state.revenueExpectedFallback && expectedStart && start?.date === expectedStart.date) {
-      flags.push("Using expected close date as contract start");
-    }
-  }
-  if (!start) {
-    return {
-      deal,
-      entries: [],
-      months: [],
-      contractStart: "",
-      contractEnd: "",
-      contractRange: "-",
-      revenueRule: "No schedule",
-      flags: flags.length ? flags : ["Missing contract start date"],
-    };
-  }
+function targetYearMonths(year) {
+  return revenueLogic.targetYearMonths(year);
+}
 
-  let monthsCount = 0;
-  let revenueRule = "";
-  const hasValidEnd = Boolean(end && end.ts >= start.ts);
-  if (end && end.ts < start.ts) {
-    flags.push("Contract end before start");
-  }
-
-  if (isOneTimeBilling(deal.billingType)) {
-    const months = [start.monthKey];
-    const serviceEnd = hasValidEnd ? end.date : period > 1 ? monthEndDate(addMonths(start.monthKey, period - 1)) : start.date;
-    return {
-      deal,
-      entries: [
-        {
-          deal,
-          monthKey: start.monthKey,
-          amount,
-          monthIndex: 1,
-          monthsCount: 1,
-        },
-      ],
-      months,
-      contractStart: start.date,
-      contractEnd: serviceEnd,
-      contractRange: `${start.date} - ${serviceEnd}`,
-      revenueRule: "One-time at contract start",
-      flags,
-    };
-  }
-
-  if (hasValidEnd) {
-    monthsCount = monthDiffInclusive(start.monthKey, end.monthKey);
-    revenueRule = "Contract start/end";
-  }
-
-  if (!monthsCount && period > 0) {
-    monthsCount = period;
-    revenueRule = "Contract period";
-  }
-
-  if (!monthsCount && mrr > 0 && amount > 0) {
-    monthsCount = Math.max(1, Math.round(amount / mrr));
-    revenueRule = "Inferred from MRR";
-    flags.push("Contract period inferred from MRR");
-  }
-
-  if (!monthsCount) {
-    monthsCount = 1;
-    revenueRule = "One-month fallback";
-    flags.push("Missing contract period/end date");
-  }
-
-  if (monthsCount > 120) {
-    monthsCount = 120;
-    flags.push("Contract period capped at 120 months");
-  }
-
-  const months = monthRange(start.monthKey, monthsCount);
-  const endMonth = months[months.length - 1] || start.monthKey;
-  const allocations = allocateRevenueAmount(amount, months.length);
-  const entries = months.map((monthKey, index) => ({
-    deal,
-    monthKey,
-    amount: roundMoney(allocations[index] || 0),
-    monthIndex: index + 1,
-    monthsCount: months.length,
-  }));
-
-  if (mrr > 0 && months.length) {
-    const mrrTotal = roundMoney(mrr * months.length);
-    if (Math.abs(mrrTotal - amount) > Math.max(1, Math.abs(amount) * 0.02)) flags.push(`MRR x months mismatch ${money(mrrTotal)}`);
-  }
-
-  const contractEnd = hasValidEnd ? end.date : monthEndDate(endMonth);
-  return {
-    deal,
-    entries,
-    months,
-    contractStart: start.date,
-    contractEnd,
-    contractRange: `${start.date} - ${contractEnd}`,
-    revenueRule,
-    flags,
-  };
+function buildRecurringTargetFromRevenue(schedules, targetYear) {
+  return revenueLogic.buildRecurringTargetFromRevenue(schedules, targetYear);
 }
 
 function buildRevenueAnalysis(scope) {
   const baseDeals = filteredDeals(scope, { period: false, countingIncluded: true })
     .filter((deal) => deal.status === "won");
+  const targetBaseDeals = filteredDeals(scope, { period: false, countingIncluded: true, globalSearch: false })
+    .filter((deal) => deal.status === "won");
   const schedules = baseDeals.map(revenueScheduleForDeal);
-  const recurringTarget = buildRecurringTargetFromRevenue(schedules, revenueTargetYearFromScope(scope));
+  const targetSchedules = targetBaseDeals.map(revenueScheduleForDeal);
+  const recurringTarget = buildRecurringTargetFromRevenue(targetSchedules, revenueTargetYearFromScope(scope));
   const selectedEntries = schedules
     .flatMap((schedule) =>
       schedule.entries.map((entry) => ({
@@ -3661,7 +3560,9 @@ function buildRevenueAnalysis(scope) {
     .sort((a, b) => b.contractAmount - a.contractAmount);
   return {
     baseDeals,
+    targetBaseDeals,
     schedules,
+    targetSchedules,
     selectedEntries,
     monthlyRows,
     saleRows,
@@ -3671,78 +3572,12 @@ function buildRevenueAnalysis(scope) {
   };
 }
 
-function targetYearMonths(year) {
-  return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
-}
-
 function revenueTargetYearFromScope(scope) {
   if (state.periodType === "year") return Number(state.periodYear) || Number(currentYearKey());
   if (state.periodType === "quarter") return Number(String(state.periodQuarter).slice(0, 4)) || Number(currentYearKey());
   if (state.periodType === "month") return Number(String(state.periodMonth).slice(0, 4)) || Number(currentYearKey());
   const firstMonth = scope.months[0] || state.startMonth || currentMonthKey();
   return Number(String(firstMonth).slice(0, 4)) || Number(currentYearKey());
-}
-
-function buildRecurringTargetFromRevenue(schedules, targetYear) {
-  const sourceYear = targetYear - 1;
-  const targetMonths = targetYearMonths(targetYear);
-  const targetMonthSet = new Set(targetMonths);
-  const rowsByKey = new Map();
-  const monthlyTotals = Object.fromEntries(targetMonths.map((month) => [month, 0]));
-  const dealKeys = new Set();
-
-  schedules
-    .filter((schedule) => isRecurringBilling(schedule.deal.billingType))
-    .forEach((schedule) => {
-      schedule.entries
-        .filter((entry) => entry.monthKey.startsWith(`${sourceYear}-`))
-        .forEach((entry) => {
-          const targetMonth = addMonths(entry.monthKey, 12);
-          if (!targetMonthSet.has(targetMonth)) return;
-          const deal = schedule.deal;
-          const key = `${deal.saleKey || deal.saleName}|${deal.category || "-"}|${deal.group || "-"}`;
-          if (!rowsByKey.has(key)) {
-            rowsByKey.set(key, {
-              saleName: deal.saleName || "-",
-              group: deal.group || "-",
-              category: deal.category || "-",
-              monthly: Object.fromEntries(targetMonths.map((month) => [month, 0])),
-              deals: new Set(),
-              companies: new Set(),
-            });
-          }
-          const row = rowsByKey.get(key);
-          row.monthly[targetMonth] = roundMoney(row.monthly[targetMonth] + entry.amount);
-          row.deals.add(dealDetailKey(deal));
-          row.companies.add(deal.company || deal.dealName || deal.id || "-");
-          monthlyTotals[targetMonth] = roundMoney(monthlyTotals[targetMonth] + entry.amount);
-          dealKeys.add(dealDetailKey(deal));
-        });
-    });
-
-  const rows = Array.from(rowsByKey.values())
-    .map((row) => ({
-      ...row,
-      total: roundMoney(sum(targetMonths, (month) => row.monthly[month] || 0)),
-      dealCount: row.deals.size,
-      companyCount: row.companies.size,
-    }))
-    .sort(
-      (a, b) =>
-        a.group.localeCompare(b.group, "th", { numeric: true }) ||
-        a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
-        a.category.localeCompare(b.category, "th", { numeric: true }),
-    );
-  const total = roundMoney(sum(targetMonths, (month) => monthlyTotals[month] || 0));
-  return {
-    sourceYear,
-    targetYear,
-    months: targetMonths,
-    rows,
-    monthlyTotals,
-    total,
-    dealCount: dealKeys.size,
-  };
 }
 
 function revenueEntryRow(entry) {
@@ -4239,7 +4074,7 @@ function sortLeadByCreatedDate(a, b) {
 
 function filteredLeadDeals() {
   const scope = calcScope();
-  const searchTerms = [state.search, state.leadSearch].map(normalizeSearch).filter(Boolean);
+  const searchTerms = [state.leadSearch].map(normalizeSearch).filter(Boolean);
   return filteredDeals(scope, { category: state.leadCategory, period: false, globalSearch: false, globalCategory: false })
     .map((deal) => ({ ...deal, createdWeek: leadCreatedWeek(deal) }))
     .filter((deal) => deal.createdWeek && deal.createdWeek >= state.leadStartWeek && deal.createdWeek <= state.leadEndWeek)
@@ -4644,23 +4479,57 @@ function renderDataQuality() {
     : `<div class="empty">ทุก Responsible map กับ Sale Target แล้ว</div>`;
 }
 
-function renderTablesOnly() {
-  renderTabDescription();
-  const scope = calcScope();
-  if (state.tab === "overview") renderTopDealsTable(scope);
-  if (state.tab === "sales") {
-    renderSalesPerformanceCharts(scope);
-    renderTransactionTable(scope);
-  }
+function renderOverviewView(scope) {
+  renderKpis(scope);
+  renderMonthlyChart(scope);
+  renderTeamChart(scope);
+  renderCategoryMix(scope);
+  renderStatusMix(scope);
+  renderTopDealsTable(scope);
+}
+
+function renderSalesPerformanceView(scope) {
+  renderKpis(scope);
+  renderSalesPerformanceCharts(scope);
+  renderTransactionTable(scope);
+}
+
+function renderPipelineRiskView(scope) {
+  renderRiskSummary(scope);
+  renderRiskByStage(scope);
+  renderRiskDealsTable(scope);
+}
+
+function renderActiveTabView(scope) {
+  if (state.tab === "overview") renderOverviewView(scope);
+  if (state.tab === "sales") renderSalesPerformanceView(scope);
   if (state.tab === "revenue") renderRevenueAnalysis(scope);
   if (state.tab === "deals") renderDealDetailTable(scope);
   if (state.tab === "leads") renderNewLead();
-  if (state.tab === "pipeline") {
-    renderRiskSummary(scope);
-    renderRiskByStage(scope);
-    renderRiskDealsTable(scope);
-  }
+  if (state.tab === "pipeline") renderPipelineRiskView(scope);
   if (state.tab === "data") renderDataQuality();
+}
+
+function renderAllDashboardViews(scope) {
+  renderOverviewView(scope);
+  renderDealDetailTable(scope);
+  renderNewLead();
+  renderRevenueAnalysis(scope);
+  renderSalesPerformanceView(scope);
+  renderPipelineRiskView(scope);
+  renderDataQuality();
+}
+
+function renderFilteredView(options = {}) {
+  const { layout = true, meta = false, allTabs = false } = options;
+  if (layout) renderTabDescription();
+  if (meta) renderMeta();
+  const scope = calcScope();
+  if (allTabs) {
+    renderAllDashboardViews(scope);
+    return;
+  }
+  renderActiveTabView(scope);
 }
 
 function renderTabDescription() {
@@ -4686,24 +4555,7 @@ function renderCategoryButtons() {
 }
 
 function render() {
-  const scope = calcScope();
-  renderTabDescription();
-  renderMeta();
-  renderKpis(scope);
-  renderMonthlyChart(scope);
-  renderTeamChart(scope);
-  renderCategoryMix(scope);
-  renderStatusMix(scope);
-  renderTopDealsTable(scope);
-  renderDealDetailTable(scope);
-  renderNewLead();
-  renderRevenueAnalysis(scope);
-  renderSalesPerformanceCharts(scope);
-  renderTransactionTable(scope);
-  renderRiskSummary(scope);
-  renderRiskByStage(scope);
-  renderRiskDealsTable(scope);
-  renderDataQuality();
+  renderFilteredView({ meta: true, allTabs: true });
 }
 
 initFilters();
