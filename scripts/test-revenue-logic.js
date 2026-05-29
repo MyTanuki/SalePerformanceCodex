@@ -279,5 +279,8 @@ assert.equal(target.monthlyTotals["2026-12"], 15000);
 assert.equal(target.total, 130000);
 assert.equal(target.dealCount, 2);
 assert.equal(target.rows.length, 2);
+assert.equal(target.rows[0].details.length, 1);
+assert.ok(target.rows.every((row) => row.details.every((detail) => detail.total > 0)));
+assert.deepEqual(target.rows.find((row) => row.category === "renew").details[0].sourceMonths, ["2025-11", "2025-12"]);
 
 console.log("Revenue logic tests passed");

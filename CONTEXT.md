@@ -84,6 +84,10 @@ _Avoid_: New
 A planning baseline for recurring revenue in the selected year, estimated from recurring revenue in the previous year. It should follow year, sale group, sale owner, and New/Renew scope, but should not change because of keyword search or detail-only search.
 _Avoid_: Sale Target, search result total
 
+**Recurring Target Detail**:
+The per-deal audit view behind a Recurring Target row for a sale owner and sale type. It exists to reconcile the target baseline with Sales without changing the target calculation.
+_Avoid_: Revenue Detail, Transaction Detail
+
 **Contract Period**:
 The service period over which recurring revenue should be recognized. It is defined by contract start and end dates, or by an agreed contract month count when dates are incomplete.
 _Avoid_: Expected Close Date, sales period

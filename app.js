@@ -44,6 +44,7 @@ const state = {
     revenue: {},
     leads: {},
   },
+  revenueTargetExpanded: {},
 };
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -1016,12 +1017,13 @@ function initFilters() {
   renderSaleOptions();
   renderFilterVisibility();
   setupSelectControls();
-  syncWeekSelectControls();
+  syncSelectControls();
 
   els.viewMode.addEventListener("change", () => {
     state.viewMode = els.viewMode.value;
     renderFilterVisibility();
     renderSaleOptions();
+    syncSelectControls();
     render();
   });
   els.periodTypeButtons.forEach((button) => {
@@ -1033,14 +1035,17 @@ function initFilters() {
   });
   els.periodYear.addEventListener("change", () => {
     state.periodYear = els.periodYear.value;
+    syncSelectControls();
     render();
   });
   els.periodQuarter.addEventListener("change", () => {
     state.periodQuarter = els.periodQuarter.value;
+    syncSelectControls();
     render();
   });
   els.periodMonth.addEventListener("change", () => {
     state.periodMonth = els.periodMonth.value;
+    syncSelectControls();
     render();
   });
   els.startMonth.addEventListener("change", () => {
@@ -1049,6 +1054,7 @@ function initFilters() {
       state.endMonth = state.startMonth;
       els.endMonth.value = state.endMonth;
     }
+    syncSelectControls();
     render();
   });
   els.endMonth.addEventListener("change", () => {
@@ -1057,6 +1063,7 @@ function initFilters() {
       state.startMonth = state.endMonth;
       els.startMonth.value = state.startMonth;
     }
+    syncSelectControls();
     render();
   });
   els.leadStartWeek.addEventListener("change", () => {
@@ -1065,7 +1072,7 @@ function initFilters() {
       state.leadEndWeek = state.leadStartWeek;
       els.leadEndWeek.value = state.leadEndWeek;
     }
-    syncWeekSelectControls();
+    syncSelectControls();
     renderFilteredView();
   });
   els.leadEndWeek.addEventListener("change", () => {
@@ -1074,7 +1081,7 @@ function initFilters() {
       state.leadStartWeek = state.leadEndWeek;
       els.leadStartWeek.value = state.leadStartWeek;
     }
-    syncWeekSelectControls();
+    syncSelectControls();
     renderFilteredView();
   });
   els.leadSearchInput.addEventListener("input", () => {
@@ -1084,10 +1091,12 @@ function initFilters() {
   els.groupSelect.addEventListener("change", () => {
     state.group = els.groupSelect.value;
     renderSaleOptions();
+    syncSelectControls();
     render();
   });
   els.saleSelect.addEventListener("change", () => {
     state.sale = els.saleSelect.value;
+    syncSelectControls();
     render();
   });
   els.searchInput.addEventListener("input", () => {
@@ -1098,6 +1107,7 @@ function initFilters() {
     state.showUnmapped = els.showUnmapped.checked;
     renderGroupOptions();
     renderSaleOptions();
+    syncSelectControls();
     render();
   });
   document.querySelectorAll(".segment button[data-category]").forEach((button) => {
@@ -1183,6 +1193,13 @@ function initFilters() {
       const dealRow = event.target.closest("[data-deal-key]");
       if (dealRow) openDealModal(dealRow.dataset.dealKey);
     });
+  });
+  els.revenueTargetTable?.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-revenue-target-toggle]");
+    if (!toggle) return;
+    const key = toggle.dataset.revenueTargetToggle;
+    state.revenueTargetExpanded[key] = !state.revenueTargetExpanded[key];
+    renderFilteredView();
   });
   [els.topDealsTable, els.riskDealsTable].forEach((table) => {
     table.addEventListener("click", (event) => {
@@ -1323,7 +1340,7 @@ function renderPeriodOptions() {
   if (state.leadStartWeek > state.leadEndWeek) state.leadEndWeek = state.leadStartWeek;
   els.leadStartWeek.value = state.leadStartWeek;
   els.leadEndWeek.value = state.leadEndWeek;
-  syncWeekSelectControls();
+  syncSelectControls();
 
   els.startMonth.innerHTML = monthOptionHtml;
   els.endMonth.innerHTML = monthOptionHtml;
@@ -1337,7 +1354,7 @@ function renderPeriodOptions() {
   if (state.startMonth > state.endMonth) state.startMonth = state.endMonth;
   els.startMonth.value = state.startMonth;
   els.endMonth.value = state.endMonth;
-  syncWeekSelectControls();
+  syncSelectControls();
 }
 
 function leadWeekOptions() {
@@ -1389,11 +1406,11 @@ function setupWeekSelectControl(select) {
   });
 }
 
-function syncWeekSelectControls() {
-  document.querySelectorAll("select").forEach(syncWeekSelectControl);
+function syncSelectControls() {
+  document.querySelectorAll("select").forEach(syncSelectControl);
 }
 
-function syncWeekSelectControl(select) {
+function syncSelectControl(select) {
   if (!select) return;
   const wrapper = select.nextElementSibling?.classList?.contains("week-select-control") ? select.nextElementSibling : null;
   if (!wrapper) return;
@@ -1426,7 +1443,7 @@ function toggleWeekSelect(select, open) {
   const button = wrapper.querySelector(".week-select-button");
   const shouldOpen = open ?? list.hidden;
   closeWeekSelects();
-  syncWeekSelectControl(select);
+  syncSelectControl(select);
   list.hidden = !shouldOpen;
   button.setAttribute("aria-expanded", String(shouldOpen));
   if (!shouldOpen) return;
@@ -1462,7 +1479,7 @@ function renderFilterVisibility() {
   els.periodSubQuarter.hidden = state.periodType !== "quarter";
   els.periodSubMonth.hidden = state.periodType !== "month";
   els.periodSubRange.hidden = state.periodType !== "range";
-  syncWeekSelectControls();
+  syncSelectControls();
 }
 
 function openSettings() {
@@ -1884,7 +1901,7 @@ function renderGroupOptions() {
     .map((group) => `<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`)
     .join("")}`;
   els.groupSelect.value = state.group;
-  syncWeekSelectControls();
+  syncSelectControls();
 }
 
 function renderSaleOptions() {
@@ -1894,7 +1911,7 @@ function renderSaleOptions() {
     .map((sale) => `<option value="${escapeHtml(sale.key)}">${escapeHtml(sale.name)}</option>`)
     .join("")}`;
   els.saleSelect.value = state.sale;
-  syncWeekSelectControls();
+  syncSelectControls();
 }
 
 function renderMeta() {
@@ -2923,6 +2940,43 @@ function renderSalesPerformanceCharts(scope) {
   renderCumulativePerformanceChart(scope);
 }
 
+function salesAmountVariant(category = state.category) {
+  if (category === "renew") return "renew";
+  if (category === "new") return "new";
+  return "total";
+}
+
+function salesAmountStatusColor(key, variant = "total") {
+  const colorSets = {
+    renew: {
+      won: "var(--renew)",
+      commit: "#14b8a6",
+      upside: "#99f6e4",
+      open: "rgba(22, 101, 52, 0.28)",
+      lost: "var(--lost)",
+    },
+    new: {
+      won: "var(--new-sale)",
+      commit: "#7e22ce",
+      upside: "#c084fc",
+      open: "rgba(107, 33, 168, 0.28)",
+      lost: "var(--lost)",
+    },
+    total: {
+      won: "var(--total)",
+      commit: "#1d4ed8",
+      upside: "#60a5fa",
+      open: "rgba(30, 58, 138, 0.24)",
+      lost: "var(--lost)",
+    },
+  };
+  return colorSets[variant]?.[key] || colorSets.total[key] || "var(--line)";
+}
+
+function legendStatusItem(key, variant) {
+  return `<span class="legend-${key}" style="--legend-color:${salesAmountStatusColor(key, variant)}">${escapeHtml(statusLabel(key))}</span>`;
+}
+
 function renderStackedPerformanceChart(container, rows, variant) {
   if (!rows.length) {
     container.innerHTML = `<div class="empty">ไม่มีข้อมูลสำหรับกราฟนี้</div>`;
@@ -2936,7 +2990,7 @@ function renderStackedPerformanceChart(container, rows, variant) {
   container.innerHTML = `
     <div class="chart-legend-inline ${variant}">
       <span class="legend-target">Target</span>
-      ${visibleKeys.map((key) => `<span class="legend-${key}">${escapeHtml(statusLabel(key))}</span>`).join("")}
+      ${visibleKeys.map((key) => legendStatusItem(key, variant)).join("")}
     </div>
     <div class="performance-row-list ${variant}">
       ${rows
@@ -2995,6 +3049,7 @@ function renderCumulativePerformanceChart(scope) {
     return;
   }
   const visibleKeys = ["won", "commit", "upside", "open", "lost"].filter((key) => state.statusFilters[key]);
+  const variant = salesAmountVariant();
   const monthlyDeals = filteredPerformanceDeals(scope, "all");
   const monthly = months.map((month) => ({
     month,
@@ -3045,7 +3100,7 @@ function renderCumulativePerformanceChart(scope) {
           const y = yAt(used + current);
           const heightValue = (current / maxValue) * chartHeight;
           used += current;
-          return `<rect class="cum-${key}" x="${xAt(index) - barWidth / 2}" y="${y}" width="${barWidth}" height="${Math.max(0, heightValue)}" rx="2"></rect>`;
+          return `<rect class="cum-${key}" x="${xAt(index) - barWidth / 2}" y="${y}" width="${barWidth}" height="${Math.max(0, heightValue)}" rx="2" style="fill:${salesAmountStatusColor(key, variant)}"></rect>`;
         })
         .join("");
       return `${parts}<text x="${xAt(index)}" y="${bottom + 20}" text-anchor="middle">${escapeHtml(item.month)}</text>`;
@@ -3059,9 +3114,9 @@ function renderCumulativePerformanceChart(scope) {
     })
     .join("");
   els.cumulativeSalesChart.innerHTML = `
-    <div class="chart-legend-inline total">
+    <div class="chart-legend-inline ${variant}">
       <span class="legend-target-line">Target สะสม</span>
-      ${visibleKeys.map((key) => `<span class="legend-${key}">${escapeHtml(statusLabel(key))}</span>`).join("")}
+      ${visibleKeys.map((key) => legendStatusItem(key, variant)).join("")}
     </div>
     <div class="svg-chart-wrap">
       <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Cumulative sales chart">
@@ -3754,6 +3809,7 @@ function renderRecurringTargetFromRevenue(target) {
 function recurringTargetTable(target) {
   if (!target.rows.length) return `<div class="empty">ไม่มี recurring revenue ปี ${target.sourceYear} สำหรับประเมิน Target ${target.targetYear}</div>`;
   const monthHeaders = target.months.map((month) => `<th class="num">${escapeHtml(monthLabel(month).replace(` ${target.targetYear}`, ""))}</th>`).join("");
+  const columnCount = target.months.length + 5;
   const totalRow = `
     <tr class="total-row">
       <td colspan="3"><strong>Total ${target.targetYear}</strong></td>
@@ -3768,31 +3824,71 @@ function recurringTargetTable(target) {
         <tr>
           <th>Sale</th>
           <th>Sale Group</th>
-          <th>Type</th>
+          <th>Last Deal Type</th>
           ${monthHeaders}
           <th class="num">Total</th>
           <th class="num">Deals</th>
         </tr>
       </thead>
       <tbody>
-        ${target.rows
-          .map(
-            (row) => `
-              <tr>
-                <td><strong>${escapeHtml(row.saleName)}</strong></td>
-                <td>${escapeHtml(row.group)}</td>
-                <td>${escapeHtml(row.category)}</td>
-                ${target.months.map((month) => `<td class="num">${row.monthly[month] ? money(row.monthly[month]) : "-"}</td>`).join("")}
-                <td class="num"><strong>${money(row.total)}</strong></td>
-                <td class="num">${row.dealCount.toLocaleString("th-TH")}</td>
-              </tr>
-            `,
-          )
-          .join("")}
+        ${target.rows.map((row) => recurringTargetRow(row, target, columnCount)).join("")}
         ${totalRow}
       </tbody>
     </table>
   `;
+}
+
+function recurringTargetRow(row, target, columnCount) {
+  const rowKey = row.key || `${row.saleName}|${row.group}|${row.category}`;
+  const expanded = Boolean(state.revenueTargetExpanded[rowKey]);
+  const detailCount = (row.details || []).length;
+  return `
+    <tr class="${expanded ? "target-parent-row is-expanded" : "target-parent-row"}">
+      <td>
+        <button type="button" class="target-sale-toggle" data-revenue-target-toggle="${escapeHtml(rowKey)}" aria-expanded="${expanded}">
+          <span class="target-toggle-mark" aria-hidden="true">${expanded ? "-" : "+"}</span>
+          <span class="target-toggle-name">${escapeHtml(row.saleName)}</span>
+          <small>${detailCount.toLocaleString("th-TH")} deals</small>
+        </button>
+      </td>
+      <td>${escapeHtml(row.group)}</td>
+      <td>${escapeHtml(row.category)}</td>
+      ${target.months.map((month) => `<td class="num">${row.monthly[month] ? money(row.monthly[month]) : "-"}</td>`).join("")}
+      <td class="num"><strong>${money(row.total)}</strong></td>
+      <td class="num">${row.dealCount.toLocaleString("th-TH")}</td>
+    </tr>
+    ${expanded ? recurringTargetDetailRow(row, target, columnCount) : ""}
+  `;
+}
+
+function recurringTargetDetailRow(row, target, columnCount) {
+  const details = row.details || [];
+  if (!details.length) {
+    return `
+      <tr class="target-detail-row">
+        <td colspan="${columnCount}">
+          <div class="target-detail-panel empty">ไม่มีรายละเอียด Deal สำหรับแถวนี้</div>
+        </td>
+      </tr>
+    `;
+  }
+  return details
+    .map(
+      (detail) => `
+        <tr class="target-detail-inline-row">
+          <td class="target-detail-company">
+            <strong>${escapeHtml(detail.company)}</strong>
+            <span>${escapeHtml(detail.dealName)}</span>
+          </td>
+          <td>${escapeHtml(detail.contractRange || "-")}</td>
+          <td>${escapeHtml(detail.billingType || "-")}</td>
+          ${target.months.map((month) => `<td class="num">${detail.monthly?.[month] ? money(detail.monthly[month]) : "-"}</td>`).join("")}
+          <td class="num"><strong>${money(detail.total || 0)}</strong></td>
+          <td class="num"></td>
+        </tr>
+      `,
+    )
+    .join("");
 }
 
 function csvCell(value) {
@@ -3802,16 +3898,30 @@ function csvCell(value) {
 
 function exportRevenueTargetCsv() {
   const target = buildRevenueAnalysis(calcScope()).recurringTarget;
-  const headers = ["Sale", "Sale Group", "Type", ...target.months.map((month) => monthLabel(month)), "Total", "Deals"];
-  const rows = target.rows.map((row) => [
-    row.saleName,
-    row.group,
-    row.category,
-    ...target.months.map((month) => row.monthly[month] || 0),
-    row.total,
-    row.dealCount,
-  ]);
+  const headers = ["Row Level", "Sale / Detail", "Sale Group / Contract", "Last Deal Type / Billing", ...target.months.map((month) => monthLabel(month)), "Total", "Deals"];
+  const rows = target.rows.flatMap((row) => {
+    const summaryRow = [
+      "Summary",
+      row.saleName,
+      row.group,
+      row.category,
+      ...target.months.map((month) => row.monthly[month] || 0),
+      row.total,
+      row.dealCount,
+    ];
+    const detailRows = (row.details || []).map((detail) => [
+      "Detail",
+      `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`,
+      detail.contractRange || "-",
+      detail.billingType || "-",
+      ...target.months.map((month) => detail.monthly?.[month] || 0),
+      detail.total || 0,
+      "",
+    ]);
+    return [summaryRow, ...detailRows];
+  });
   rows.push([
+    "Total",
     `Total ${target.targetYear}`,
     "",
     "",
@@ -4524,6 +4634,7 @@ function renderFilteredView(options = {}) {
   const { layout = true, meta = false, allTabs = false } = options;
   if (layout) renderTabDescription();
   if (meta) renderMeta();
+  syncSelectControls();
   const scope = calcScope();
   if (allTabs) {
     renderAllDashboardViews(scope);

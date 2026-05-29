@@ -217,20 +217,39 @@
               const key = `${deal.saleKey || deal.saleName}|${deal.category || "-"}|${deal.group || "-"}`;
               if (!rowsByKey.has(key)) {
                 rowsByKey.set(key, {
+                  key,
                   saleName: deal.saleName || "-",
                   group: deal.group || "-",
                   category: deal.category || "-",
                   monthly: Object.fromEntries(targetMonths.map((month) => [month, 0])),
                   deals: new Set(),
                   companies: new Set(),
+                  detailMap: new Map(),
                 });
               }
               const row = rowsByKey.get(key);
+              const detailKey = deps.dealDetailKey(deal);
+              if (!row.detailMap.has(detailKey)) {
+                row.detailMap.set(detailKey, {
+                  key: detailKey,
+                  company: deal.company || "-",
+                  dealName: deal.dealName || deal.id || "-",
+                  contractRange: schedule.contractRange || "-",
+                  billingType: deal.billingType || "-",
+                  monthly: Object.fromEntries(targetMonths.map((month) => [month, 0])),
+                  total: 0,
+                  sourceMonths: new Set(),
+                });
+              }
+              const detail = row.detailMap.get(detailKey);
               row.monthly[targetMonth] = deps.roundMoney(row.monthly[targetMonth] + entry.amount);
-              row.deals.add(deps.dealDetailKey(deal));
+              detail.monthly[targetMonth] = deps.roundMoney(detail.monthly[targetMonth] + entry.amount);
+              detail.total = deps.roundMoney(detail.total + entry.amount);
+              detail.sourceMonths.add(entry.monthKey);
+              row.deals.add(detailKey);
               row.companies.add(deal.company || deal.dealName || deal.id || "-");
               monthlyTotals[targetMonth] = deps.roundMoney(monthlyTotals[targetMonth] + entry.amount);
-              dealKeys.add(deps.dealDetailKey(deal));
+              dealKeys.add(detailKey);
             });
         });
 
@@ -240,6 +259,17 @@
           total: deps.roundMoney(deps.sum(targetMonths, (month) => row.monthly[month] || 0)),
           dealCount: row.deals.size,
           companyCount: row.companies.size,
+          details: Array.from(row.detailMap.values())
+            .map((detail) => ({
+              ...detail,
+              sourceMonths: Array.from(detail.sourceMonths).sort(),
+            }))
+            .sort(
+              (a, b) =>
+                b.total - a.total ||
+                a.company.localeCompare(b.company, "th", { numeric: true }) ||
+                a.dealName.localeCompare(b.dealName, "th", { numeric: true }),
+            ),
         }))
         .sort(
           (a, b) =>

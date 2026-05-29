@@ -1648,7 +1648,7 @@ body.is-leads-tab .kpi-grid {
   width: 14px;
   height: 10px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--legend-color, var(--line));
   content: "";
 }
 
@@ -2296,6 +2296,91 @@ th.num {
 .target-table th,
 .target-table td {
   white-space: nowrap;
+}
+
+.target-parent-row.is-expanded td {
+  background: var(--primary-soft);
+}
+
+.target-sale-toggle {
+  display: inline-grid;
+  grid-template-columns: 18px auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  min-width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.target-sale-toggle:hover .target-toggle-name {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.target-toggle-mark {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--primary);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.target-toggle-name {
+  font-weight: 900;
+}
+
+.target-sale-toggle small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.target-detail-row td,
+.target-detail-inline-row td {
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--surface));
+}
+
+.target-detail-inline-row td {
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.target-detail-inline-row .num strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.target-detail-company {
+  min-width: 260px;
+  white-space: normal;
+}
+
+.target-detail-company strong,
+.target-detail-company span {
+  display: block;
+}
+
+.target-detail-company strong {
+  color: var(--text);
+}
+
+.target-detail-company span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .target-table .total-row td {
