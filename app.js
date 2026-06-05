@@ -3912,6 +3912,14 @@ function schedulesWithMonths(schedules, monthSet) {
   return revenueLogic.schedulesWithMonths(schedules, monthSet);
 }
 
+function invoiceProjectKey(invoice) {
+  return revenueLogic.invoiceProjectKey(invoice);
+}
+
+function earliestDateValue(currentValue, nextValue) {
+  return revenueLogic.earliestDateValue(currentValue, nextValue);
+}
+
 function invoiceMatchesGlobalSearch(invoice, search = state.search) {
   const q = normalizeSearch(search);
   if (!q) return true;
@@ -3963,7 +3971,7 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
         });
       }
       const row = rowsByKey.get(key);
-      const detailKey = `${invoice.documentNo || invoice.id}|${invoice.company}|${invoice.dealName}|${invoice.contractRange}|${invoice.amount}`;
+      const detailKey = invoiceProjectKey(invoice);
       if (!row.detailMap.has(detailKey)) {
         row.detailMap.set(detailKey, {
           key: detailKey,
@@ -3975,9 +3983,16 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
           monthly: Object.fromEntries(months.map((month) => [month, 0])),
           total: 0,
           sourceMonths: new Set(),
+          documentNos: new Set(),
+          contractRanges: new Set(),
+          postingDates: new Set(),
         });
       }
       const detail = row.detailMap.get(detailKey);
+      detail.postingDate = earliestDateValue(detail.postingDate, invoice.postingDate || "");
+      if (invoice.contractRange) detail.contractRanges.add(invoice.contractRange);
+      if (invoice.postingDate) detail.postingDates.add(invoice.postingDate);
+      if (invoice.documentNo || invoice.id) detail.documentNos.add(invoice.documentNo || invoice.id);
       row.monthly[invoice.analysisMonthKey] = roundMoney(row.monthly[invoice.analysisMonthKey] + invoice.amount);
       detail.monthly[invoice.analysisMonthKey] = roundMoney(detail.monthly[invoice.analysisMonthKey] + invoice.amount);
       detail.total = roundMoney(detail.total + invoice.amount);
@@ -3995,10 +4010,18 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
       dealCount: row.deals.size,
       companyCount: row.companies.size,
       details: Array.from(row.detailMap.values())
-        .map((detail) => ({
-          ...detail,
-          sourceMonths: Array.from(detail.sourceMonths).sort(),
-        }))
+        .map((detail) => {
+          const contractRanges = Array.from(detail.contractRanges).sort();
+          return {
+            ...detail,
+            contractRange:
+              contractRanges.length > 1 ? `${contractRanges[0]} | ${contractRanges.at(-1)}` : detail.contractRange,
+            sourceMonths: Array.from(detail.sourceMonths).sort(),
+            documentNos: Array.from(detail.documentNos).sort(),
+            contractRanges,
+            postingDates: Array.from(detail.postingDates).sort(),
+          };
+        })
         .sort(
           (a, b) =>
             b.total - a.total ||

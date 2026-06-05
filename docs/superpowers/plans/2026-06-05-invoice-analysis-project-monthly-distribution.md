@@ -16,13 +16,13 @@
 - Modify: `C:\CodexWS\sale-performance-dashboard\scripts\test-revenue-logic.js`
 - Modify: `C:\CodexWS\sale-performance-dashboard\scripts\revenue-logic.js`
 
-- [ ] **Step 1: Add pure grouping helper to revenue logic**
+- [x] **Step 1: Add pure grouping helper to revenue logic**
 
 In `scripts/revenue-logic.js`, add pure helpers inside `createRevenueLogic(deps)` near other utility helpers:
 
 ```js
 function invoiceProjectKey(invoice) {
-  return `${deps.normalizeName(invoice.company)}|${deps.normalizeName(invoice.dealName || invoice.description || invoice.documentNo)}`;
+  return `${deps.normalizeName(invoice.company)}|${deps.normalizeName(invoice.dealName || invoice.description || "")}`;
 }
 
 function earliestDateValue(currentValue, nextValue) {
@@ -41,7 +41,7 @@ invoiceProjectKey,
 earliestDateValue,
 ```
 
-- [ ] **Step 2: Add tests for grouping key and earliest posting date**
+- [x] **Step 2: Add tests for grouping key and earliest posting date**
 
 In `scripts/test-revenue-logic.js`, destructure the new helpers:
 
@@ -64,7 +64,7 @@ assert.equal(earliestDateValue("15/02/2026", "01/02/2026"), "01/02/2026");
 assert.equal(earliestDateValue("", "01/03/2026"), "01/03/2026");
 ```
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
 
 Run:
 
@@ -79,7 +79,7 @@ Expected: `Revenue logic tests passed`.
 **Files:**
 - Modify: `C:\CodexWS\sale-performance-dashboard\app.js`
 
-- [ ] **Step 1: Add wrappers for new revenue logic helpers**
+- [x] **Step 1: Add wrappers for new revenue logic helpers**
 
 Near existing wrappers such as `schedulesWithMonths`, add:
 
@@ -93,7 +93,7 @@ function earliestDateValue(currentValue, nextValue) {
 }
 ```
 
-- [ ] **Step 2: Replace the invoice detail key**
+- [x] **Step 2: Replace the invoice detail key**
 
 In `buildInvoiceDistributionFromInvoices(invoices, targetYear)`, replace:
 
@@ -107,7 +107,7 @@ With:
 const detailKey = invoiceProjectKey(invoice);
 ```
 
-- [ ] **Step 3: Track grouped invoice metadata**
+- [x] **Step 3: Track grouped invoice metadata**
 
 When creating a detail entry, include:
 
@@ -130,7 +130,7 @@ total: 0,
 sourceMonths: new Set(),
 ```
 
-- [ ] **Step 4: Update grouped metadata on each invoice**
+- [x] **Step 4: Update grouped metadata on each invoice**
 
 After `const detail = row.detailMap.get(detailKey);`, add:
 
@@ -141,7 +141,7 @@ if (invoice.postingDate) detail.postingDates.add(invoice.postingDate);
 if (invoice.documentNo || invoice.id) detail.documentNos.add(invoice.documentNo || invoice.id);
 ```
 
-- [ ] **Step 5: Preserve row counters**
+- [x] **Step 5: Preserve row counters**
 
 Keep the existing monthly summing:
 
@@ -159,7 +159,7 @@ row.deals.add(detailKey);
 invoiceKeys.add(detailKey);
 ```
 
-- [ ] **Step 6: Normalize grouped detail output**
+- [x] **Step 6: Normalize grouped detail output**
 
 When converting detail map values, include arrays:
 
@@ -178,7 +178,7 @@ contractRange: detail.contractRanges.size > 1
   : detail.contractRange,
 ```
 
-- [ ] **Step 7: Run syntax check**
+- [x] **Step 7: Run syntax check**
 
 Run:
 
@@ -193,7 +193,7 @@ Expected: no output and exit code `0`.
 **Files:**
 - Modify: `C:\CodexWS\sale-performance-dashboard\app.js`
 
-- [ ] **Step 1: Confirm no export-specific regrouping exists**
+- [x] **Step 1: Confirm no export-specific regrouping exists**
 
 Confirm `exportInvoiceAnalysisCsv()` still calls:
 
@@ -205,7 +205,7 @@ exportRevenueBreakdownCsv(invoiceAnalysis, `${invoiceAnalysis.targetYear}-invoic
 });
 ```
 
-- [ ] **Step 2: Confirm export sorting and date formatting still use grouped fields**
+- [x] **Step 2: Confirm export sorting and date formatting still use grouped fields**
 
 Confirm grouped rows flow through `exportRevenueBreakdownCsv()` and use:
 
@@ -215,7 +215,7 @@ csvDateRange(detail.contractRange || "-")
 exportCustomerPostingAmountSort
 ```
 
-- [ ] **Step 3: Run syntax check and tests**
+- [x] **Step 3: Run syntax check and tests**
 
 Run:
 
@@ -235,7 +235,7 @@ Expected:
 - Modify: `C:\CodexWS\sale-performance-dashboard\README.md`
 - Modify: `C:\CodexWS\sale-performance-dashboard\CONTEXT.md`
 
-- [ ] **Step 1: Update README**
+- [x] **Step 1: Update README**
 
 Add or update the Invoice Analysis note:
 
@@ -243,7 +243,7 @@ Add or update the Invoice Analysis note:
 - Invoice Analysis groups invoice detail rows by Company + Deal/Description, then distributes invoice amounts across monthly columns using Posting Date or Service Period mode. Multiple invoice rows for the same company/project are combined into one monthly distribution row.
 ```
 
-- [ ] **Step 2: Update CONTEXT.md**
+- [x] **Step 2: Update CONTEXT.md**
 
 Under `Revenue Analysis`, add:
 
@@ -253,7 +253,7 @@ The invoice-based monthly distribution view. Detail rows are grouped by company 
 _Avoid_: Revenue Detail, Invoice raw rows
 ```
 
-- [ ] **Step 3: Review docs diff**
+- [x] **Step 3: Review docs diff**
 
 Run:
 
@@ -273,7 +273,7 @@ Expected: only the intended documentation wording changes.
 - Modify: `C:\CodexWS\sale-performance-dashboard\CONTEXT.md`
 - Add: `C:\CodexWS\sale-performance-dashboard\docs\superpowers\plans\2026-06-05-invoice-analysis-project-monthly-distribution.md`
 
-- [ ] **Step 1: Run final checks**
+- [x] **Step 1: Run final checks**
 
 Run:
 
@@ -287,7 +287,7 @@ Expected:
 - `node --check` exits `0`.
 - `Revenue logic tests passed`.
 
-- [ ] **Step 2: Review changed files**
+- [x] **Step 2: Review changed files**
 
 Run:
 
@@ -303,7 +303,7 @@ Expected:
 - Export uses grouped rows.
 - Revenue Distribution/Target/Detail logic is unchanged except shared helper additions.
 
-- [ ] **Step 3: Commit only files changed for this feature**
+- [x] **Step 3: Commit only files changed for this feature**
 
 Run:
 

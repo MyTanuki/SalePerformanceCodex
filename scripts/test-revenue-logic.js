@@ -144,7 +144,23 @@ function amounts(entries) {
   return entries.map((entry) => entry.amount);
 }
 
-const { revenueScheduleForDeal, schedulesWithMonths, buildRecurringTargetFromRevenue } = revenueLogic;
+const { revenueScheduleForDeal, schedulesWithMonths, buildRecurringTargetFromRevenue, invoiceProjectKey, earliestDateValue } =
+  revenueLogic;
+
+assert.equal(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A Jan", documentNo: "INV-001" }),
+  invoiceProjectKey({ company: " บริษัท ก จำกัด ", dealName: "service a jan", documentNo: "INV-002" }),
+);
+assert.notEqual(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A" }),
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service B" }),
+);
+assert.equal(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", description: "Service A", documentNo: "INV-001" }),
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", description: "Service A", documentNo: "INV-002" }),
+);
+assert.equal(earliestDateValue("15/02/2026", "01/02/2026"), "01/02/2026");
+assert.equal(earliestDateValue("", "01/03/2026"), "01/03/2026");
 
 const oneTime = revenueScheduleForDeal(
   deal({

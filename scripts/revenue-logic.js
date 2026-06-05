@@ -33,6 +33,18 @@
       return null;
     }
 
+    function invoiceProjectKey(invoice) {
+      return `${deps.normalizeName(invoice.company)}|${deps.normalizeName(invoice.dealName || invoice.description || "")}`;
+    }
+
+    function earliestDateValue(currentValue, nextValue) {
+      const current = deps.parseDateValue(currentValue);
+      const next = deps.parseDateValue(nextValue);
+      if (!current) return nextValue || currentValue || "";
+      if (!next) return currentValue || nextValue || "";
+      return next.ts < current.ts ? nextValue : currentValue;
+    }
+
     function revenuePeriodMonths(deal) {
       return Number(deal.contractPeriodMonths) || deps.parsePositiveInt(deal.contractPeriodMonths);
     }
@@ -304,6 +316,8 @@
       revenuePeriodMonths,
       isOneTimeBilling,
       isRecurringBilling,
+      invoiceProjectKey,
+      earliestDateValue,
       allocateRevenueAmount,
       revenueScheduleForDeal,
       targetYearMonths,

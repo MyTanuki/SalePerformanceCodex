@@ -72,6 +72,10 @@ _Avoid_: Sales performance, pipeline forecast
 The monthly line-item view behind the Revenue Schedule. It is intended for reconciliation and review by finance, accounting, and management.
 _Avoid_: Transaction Detail, All Deals
 
+**Invoice Analysis**:
+The invoice-based monthly distribution view. Detail rows are grouped by company and project/description, then invoice amounts are distributed across month columns using either Posting Date or Service Period mode.
+_Avoid_: Revenue Detail, Invoice raw rows
+
 **Revenue Performance**:
 The management view that compares actual recurring revenue recognized from Won or Pre-Won deals against the Recurring Target for the selected period. It measures revenue achievement, not sales booking achievement.
 _Avoid_: Sales Performance, Revenue Detail
