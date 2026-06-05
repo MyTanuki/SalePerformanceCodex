@@ -197,6 +197,16 @@
       return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
     }
 
+    function schedulesWithMonths(schedules, monthSet) {
+      return schedules
+        .map((schedule) => ({
+          ...schedule,
+          entries: schedule.entries.filter((entry) => monthSet.has(entry.monthKey)),
+          months: schedule.months.filter((month) => monthSet.has(month)),
+        }))
+        .filter((schedule) => schedule.entries.length);
+    }
+
     function buildRecurringTargetFromRevenue(schedules, targetYear) {
       const sourceYear = targetYear - 1;
       const targetMonths = targetYearMonths(targetYear);
@@ -297,6 +307,7 @@
       allocateRevenueAmount,
       revenueScheduleForDeal,
       targetYearMonths,
+      schedulesWithMonths,
       buildRecurringTargetFromRevenue,
     };
   }

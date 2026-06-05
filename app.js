@@ -3909,13 +3909,7 @@ function buildRevenueDistributionFromRevenue(schedules, targetYear) {
 }
 
 function schedulesWithMonths(schedules, monthSet) {
-  return schedules
-    .map((schedule) => ({
-      ...schedule,
-      entries: schedule.entries.filter((entry) => monthSet.has(entry.monthKey)),
-      months: schedule.months.filter((month) => monthSet.has(month)),
-    }))
-    .filter((schedule) => schedule.entries.length);
+  return revenueLogic.schedulesWithMonths(schedules, monthSet);
 }
 
 function invoiceMatchesGlobalSearch(invoice, search = state.search) {
