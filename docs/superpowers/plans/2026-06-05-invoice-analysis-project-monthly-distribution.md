@@ -78,36 +78,40 @@ Expected: `Revenue logic tests passed`.
 
 **Files:**
 - Modify: `C:\CodexWS\sale-performance-dashboard\app.js`
+- Modify: `C:\CodexWS\sale-performance-dashboard\scripts\revenue-logic.js`
 
-- [x] **Step 1: Add wrappers for new revenue logic helpers**
+- [x] **Step 1: Implement and export the invoice distribution helper in revenue logic**
 
-Near existing wrappers such as `schedulesWithMonths`, add:
-
-```js
-function invoiceProjectKey(invoice) {
-  return revenueLogic.invoiceProjectKey(invoice);
-}
-
-function earliestDateValue(currentValue, nextValue) {
-  return revenueLogic.earliestDateValue(currentValue, nextValue);
-}
-```
-
-- [x] **Step 2: Replace the invoice detail key**
-
-In `buildInvoiceDistributionFromInvoices(invoices, targetYear)`, replace:
-
-```js
-const detailKey = `${invoice.documentNo || invoice.id}|${invoice.company}|${invoice.dealName}|${invoice.contractRange}|${invoice.amount}`;
-```
-
-With:
+In `scripts/revenue-logic.js`, implement and export `buildInvoiceDistributionFromInvoices(invoices, targetYear)` so the production grouping behavior is testable outside the browser app. The helper expects invoices to already include `analysisMonthKey`, then groups detail rows by:
 
 ```js
 const detailKey = invoiceProjectKey(invoice);
 ```
 
-- [x] **Step 3: Track grouped invoice metadata**
+The helper owns monthly summing, grouped metadata, earliest posting date preservation, detail normalization, row counters, and `dealCount`.
+
+- [x] **Step 2: Delegate app Invoice Analysis building to the revenue logic helper**
+
+In `app.js`, keep `invoiceAnalysisMonthKey(invoice)` app-side because it depends on UI state, then delegate directly to the shared helper:
+
+```js
+function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
+  return revenueLogic.buildInvoiceDistributionFromInvoices(
+    invoices.map((invoice) => ({ ...invoice, analysisMonthKey: invoiceAnalysisMonthKey(invoice) })),
+    targetYear,
+  );
+}
+```
+
+- [x] **Step 3: Ensure the detail grouping key excludes invoice-specific fields**
+
+Inside the revenue logic helper, use only Company + Deal/Description via `invoiceProjectKey(invoice)`. Do not include document number, service period, posting date, or amount in the grouping key.
+
+```js
+const detailKey = invoiceProjectKey(invoice);
+```
+
+- [x] **Step 4: Track grouped invoice metadata**
 
 When creating a detail entry, include:
 
@@ -130,7 +134,7 @@ total: 0,
 sourceMonths: new Set(),
 ```
 
-- [x] **Step 4: Update grouped metadata on each invoice**
+- [x] **Step 5: Update grouped metadata on each invoice**
 
 After `const detail = row.detailMap.get(detailKey);`, add:
 
@@ -141,7 +145,7 @@ if (invoice.postingDate) detail.postingDates.add(invoice.postingDate);
 if (invoice.documentNo || invoice.id) detail.documentNos.add(invoice.documentNo || invoice.id);
 ```
 
-- [x] **Step 5: Preserve row counters**
+- [x] **Step 6: Preserve row counters**
 
 Keep the existing monthly summing:
 
@@ -159,7 +163,7 @@ row.deals.add(detailKey);
 invoiceKeys.add(detailKey);
 ```
 
-- [x] **Step 6: Normalize grouped detail output**
+- [x] **Step 7: Normalize grouped detail output**
 
 When converting detail map values, include arrays:
 
@@ -178,7 +182,7 @@ contractRange: detail.contractRanges.size > 1
   : detail.contractRange,
 ```
 
-- [x] **Step 7: Run syntax check**
+- [x] **Step 8: Run syntax check**
 
 Run:
 
@@ -320,4 +324,4 @@ Expected: commit succeeds with only relevant files.
 
 - Spec coverage: plan covers grouping by Company + Deal/Description, monthly distribution in one row, earliest posting date, export reuse, docs, and tests.
 - Placeholder scan: no TBD/TODO/placeholders.
-- Type consistency: helper names are `invoiceProjectKey` and `earliestDateValue`, exposed from `scripts/revenue-logic.js` and wrapped in `app.js`.
+- Type consistency: `invoiceProjectKey`, `earliestDateValue`, and `buildInvoiceDistributionFromInvoices` are implemented and exported from `scripts/revenue-logic.js`; `app.js` delegates Invoice Analysis distribution directly to `revenueLogic.buildInvoiceDistributionFromInvoices(...)`.
