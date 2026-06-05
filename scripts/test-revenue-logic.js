@@ -144,8 +144,14 @@ function amounts(entries) {
   return entries.map((entry) => entry.amount);
 }
 
-const { revenueScheduleForDeal, schedulesWithMonths, buildRecurringTargetFromRevenue, invoiceProjectKey, earliestDateValue } =
-  revenueLogic;
+const {
+  revenueScheduleForDeal,
+  schedulesWithMonths,
+  buildRecurringTargetFromRevenue,
+  invoiceProjectKey,
+  earliestDateValue,
+  buildInvoiceDistributionFromInvoices,
+} = revenueLogic;
 
 assert.equal(
   invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A Jan", documentNo: "INV-001" }),
@@ -161,6 +167,88 @@ assert.equal(
 );
 assert.equal(earliestDateValue("15/02/2026", "01/02/2026"), "01/02/2026");
 assert.equal(earliestDateValue("", "01/03/2026"), "01/03/2026");
+
+const invoiceDistribution = buildInvoiceDistributionFromInvoices(
+  [
+    {
+      id: "inv-jan-a",
+      documentNo: "INV-001",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Alpha",
+      postingDate: "15/02/2026",
+      contractRange: "01/01/2026 - 31/01/2026",
+      billingType: "Recurring",
+      amount: 100,
+      analysisMonthKey: "2026-01",
+    },
+    {
+      id: "inv-feb-a",
+      documentNo: "INV-002",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: " company a ",
+      dealName: "project alpha",
+      postingDate: "01/02/2026",
+      contractRange: "01/02/2026 - 28/02/2026",
+      billingType: "Recurring",
+      amount: 200,
+      analysisMonthKey: "2026-02",
+    },
+    {
+      id: "inv-feb-b",
+      documentNo: "INV-003",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Alpha",
+      postingDate: "10/02/2026",
+      contractRange: "15/02/2026 - 28/02/2026",
+      billingType: "Recurring",
+      amount: 50,
+      analysisMonthKey: "2026-02",
+    },
+    {
+      id: "inv-beta",
+      documentNo: "INV-004",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Beta",
+      postingDate: "05/03/2026",
+      contractRange: "01/03/2026 - 31/03/2026",
+      billingType: "Recurring",
+      amount: 75,
+      analysisMonthKey: "2026-03",
+    },
+  ],
+  2026,
+);
+assert.equal(invoiceDistribution.rows.length, 1);
+assert.equal(invoiceDistribution.dealCount, 2);
+const invoiceDetails = invoiceDistribution.rows[0].details;
+assert.equal(invoiceDetails.length, 2);
+const alphaDetail = invoiceDetails.find((detail) => normalizeName(detail.dealName) === "project alpha");
+const betaDetail = invoiceDetails.find((detail) => normalizeName(detail.dealName) === "project beta");
+assert.ok(alphaDetail);
+assert.ok(betaDetail);
+assert.equal(alphaDetail.monthly["2026-01"], 100);
+assert.equal(alphaDetail.monthly["2026-02"], 250);
+assert.equal(alphaDetail.total, 350);
+assert.equal(alphaDetail.postingDate, "01/02/2026");
+assert.deepEqual(alphaDetail.sourceMonths, ["2026-01", "2026-02"]);
+assert.deepEqual(alphaDetail.documentNos, ["INV-001", "INV-002", "INV-003"]);
+assert.equal(betaDetail.monthly["2026-03"], 75);
+assert.equal(betaDetail.total, 75);
 
 const oneTime = revenueScheduleForDeal(
   deal({
