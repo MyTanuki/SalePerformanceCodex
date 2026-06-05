@@ -3908,10 +3908,25 @@ function buildRevenueDistributionFromRevenue(schedules, targetYear) {
   };
 }
 
+function schedulesWithMonths(schedules, monthSet) {
+  return schedules
+    .map((schedule) => ({
+      ...schedule,
+      entries: schedule.entries.filter((entry) => monthSet.has(entry.monthKey)),
+      months: schedule.months.filter((month) => monthSet.has(month)),
+    }))
+    .filter((schedule) => schedule.entries.length);
+}
+
 function invoiceMatchesGlobalSearch(invoice, search = state.search) {
   const q = normalizeSearch(search);
   if (!q) return true;
   return (invoice.invoiceSearch || normalizeSearch(Object.values(invoice).join(" "))).includes(q);
+}
+
+function revenueDistributionDeals(scope) {
+  return filteredDeals(scope, { period: false, countingIncluded: true, globalSearch: true })
+    .filter((deal) => deal.status === "won");
 }
 
 function invoiceRowsForAnalysis(scope) {
@@ -4016,15 +4031,14 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
 }
 
 function buildRevenueAnalysis(scope) {
-  const baseDeals = filteredDeals(scope, { period: false, countingIncluded: true })
-    .filter((deal) => deal.status === "won");
+  const baseDeals = revenueDistributionDeals(scope);
   const targetBaseDeals = filteredDeals(scope, { period: false, countingIncluded: true, globalSearch: false })
     .filter((deal) => deal.status === "won");
   const schedules = baseDeals.map(revenueScheduleForDeal);
   const targetSchedules = targetBaseDeals.map(revenueScheduleForDeal);
   const revenueYear = revenueTargetYearFromScope(scope);
   const recurringTarget = buildRecurringTargetFromRevenue(targetSchedules, revenueYear);
-  const revenueDistribution = buildRevenueDistributionFromRevenue(schedules, revenueYear);
+  const revenueDistribution = buildRevenueDistributionFromRevenue(schedulesWithMonths(schedules, scope.monthSet), revenueYear);
   const invoiceAnalysis = buildInvoiceDistributionFromInvoices(invoiceRowsForAnalysis(scope), revenueYear);
   const selectedEntries = schedules
     .flatMap((schedule) =>

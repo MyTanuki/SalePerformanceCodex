@@ -65,7 +65,7 @@ _Avoid_: Won amount, Revenue Target
 ## Revenue Analysis
 
 **Revenue Schedule**:
-The monthly distribution of revenue expected from Won or Pre-Won deals. It is used for finance planning and management visibility.
+The monthly distribution of revenue expected from Won or Pre-Won deals. It is filtered by revenue month, so contracts that started before the selected period still contribute when they recognize revenue during the selected period. It is used for finance planning and management visibility.
 _Avoid_: Sales performance, pipeline forecast
 
 **Revenue Detail**:

@@ -176,6 +176,42 @@ assert.deepEqual(recurring.months.slice(0, 3), ["2025-01", "2025-02", "2025-03"]
 assert.equal(amounts(recurring.entries).reduce((total, value) => total + value, 0), 120000);
 assert.ok(amounts(recurring.entries).every((value) => value === 10000));
 
+const oldContractStillActive = revenueScheduleForDeal(
+  deal({
+    id: "old-active",
+    amount: 120000,
+    billingType: "Recurring",
+    contractStartDate: "2025-07-01",
+    contractEndDate: "2026-06-30",
+    expectedDate: "2025-06-15",
+  }),
+);
+assert.equal(oldContractStillActive.entries.length, 12);
+assert.equal(oldContractStillActive.entries.filter((entry) => entry.monthKey.startsWith("2026-")).length, 6);
+assert.equal(
+  oldContractStillActive.entries
+    .filter((entry) => entry.monthKey.startsWith("2026-"))
+    .reduce((total, entry) => total + entry.amount, 0),
+  60000,
+);
+
+const fallbackSchedule = revenueScheduleForDeal(
+  deal({
+    id: "fallback-active",
+    amount: 60000,
+    billingType: "Recurring",
+    contractStartDate: "",
+    contractEndDate: "",
+    contractPeriodMonths: "6",
+    expectedDate: "2026-01-15",
+  }),
+);
+assert.equal(fallbackSchedule.contractStart, "2026-01-15");
+assert.equal(fallbackSchedule.entries[0].monthKey, "2026-01");
+assert.equal(fallbackSchedule.entries[5].monthKey, "2026-06");
+assert.equal(fallbackSchedule.entries[5].monthIndex, 6);
+assert.equal(fallbackSchedule.entries[5].monthsCount, 6);
+
 revenueExpectedFallback = true;
 const expectedFallback = revenueScheduleForDeal(
   deal({

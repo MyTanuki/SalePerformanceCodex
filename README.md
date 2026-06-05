@@ -122,7 +122,7 @@ Pipeline Matching can also be edited in the Setting modal. When matching rules e
 - `Pre-WON` and `Won` are treated as won.
 - `Pre-LOST` and `Lost` are treated as lost.
 - Sales performance date filtering uses Expected Close Date for pipeline tracking.
-- Revenue Analysis actual/detail rows filter deals by view/search/type, then filter the output schedule by the selected Year, Quarter, Month, or Range. Recurring Target follows year/group/sale/New-Renew counting scope but ignores keyword search and detail AND/NOT search.
+- Revenue Analysis actual/detail rows and Revenue Distribution build schedules from Won / Pre-WON counted deals that match view/search/type scope, then filter schedule entries by the selected Year, Quarter, Month, or Range. Older contracts are included when they still recognize revenue inside the selected period. Recurring Target follows year/group/sale/New-Renew counting scope but ignores keyword search and detail AND/NOT search.
 - Revenue Analysis recognizes `One-time` / `OTC` deals in the contract start month. Recurring deals spread contract value straight-line by month using `Contract Start Date` and `Contract End Date`; if those are incomplete it falls back to `Contract Period (จำนวนเดือน)`, then MRR inference, then a one-month temporary schedule with a data check flag.
 - The recurring target table uses only `Billing Type = Recurring`, takes monthly revenue from the year before the selected target year, and shifts each month to the same month in the selected year as a baseline target estimate.
 - Monthly Revenue Schedule compares `Actual Recurring Revenue` against the calculated recurring target. Total Revenue is still shown separately so one-time revenue does not inflate recurring achievement.
