@@ -144,6 +144,29 @@ function amounts(entries) {
   return entries.map((entry) => entry.amount);
 }
 
+function schedulesWithMonths(schedules, monthSet) {
+  return schedules
+    .map((schedule) => ({
+      ...schedule,
+      entries: schedule.entries.filter((entry) => monthSet.has(entry.monthKey)),
+      months: schedule.months.filter((month) => monthSet.has(month)),
+    }))
+    .filter((schedule) => schedule.entries.length);
+}
+
+function monthlyTotalsForSchedules(schedules, months) {
+  const monthSet = new Set(months);
+  const totals = Object.fromEntries(months.map((month) => [month, 0]));
+  schedules.forEach((schedule) => {
+    schedule.entries
+      .filter((entry) => monthSet.has(entry.monthKey))
+      .forEach((entry) => {
+        totals[entry.monthKey] = roundMoney(totals[entry.monthKey] + entry.amount);
+      });
+  });
+  return totals;
+}
+
 const { revenueScheduleForDeal, buildRecurringTargetFromRevenue } = revenueLogic;
 
 const oneTime = revenueScheduleForDeal(
@@ -194,6 +217,15 @@ assert.equal(
     .reduce((total, entry) => total + entry.amount, 0),
   60000,
 );
+const oldContractSelectedSchedules = schedulesWithMonths([oldContractStillActive], new Set(["2026-01", "2026-02"]));
+const oldContractSelectedTotals = monthlyTotalsForSchedules(oldContractSelectedSchedules, revenueLogic.targetYearMonths(2026));
+assert.equal(oldContractSelectedSchedules[0].entries.length, 2);
+assert.deepEqual(oldContractSelectedSchedules[0].months, ["2026-01", "2026-02"]);
+assert.equal(oldContractSelectedTotals["2026-01"], 10000);
+assert.equal(oldContractSelectedTotals["2026-02"], 10000);
+assert.equal(oldContractSelectedTotals["2026-03"], 0);
+assert.equal(oldContractSelectedTotals["2026-06"], 0);
+assert.equal(sum(Object.values(oldContractSelectedTotals), (amount) => amount), 20000);
 
 const fallbackSchedule = revenueScheduleForDeal(
   deal({
