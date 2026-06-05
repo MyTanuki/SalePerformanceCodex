@@ -1,0 +1,431 @@
+{
+  "nodes": [
+    {
+      "id": "file:app.js",
+      "type": "file",
+      "name": "app.js",
+      "summary": "Main application logic for the Sale Performance Dashboard. Contains CSV parsing, state management, filter logic, chart rendering (monthly, team, category, revenue), tab/view switching, deal modal, pipeline risk, revenue analysis, lead tracking, data quality checks, and export functions. The single largest file in the project (~5000 lines).",
+      "tags": ["javascript", "dashboard", "csv-parsing", "chart-rendering", "filter", "state", "revenue", "pipeline"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "file:data/dashboard-data.js",
+      "type": "file",
+      "name": "dashboard-data.js",
+      "summary": "Skeleton/seed data file that exposes window.DASHBOARD_DATA. Provides an empty but structurally complete dashboard data object including metadata, months array (2024-2028), stage weights, empty mappings, and quality counters. Loaded before app.js so the app always has a baseline data shape.",
+      "tags": ["javascript", "data", "seed", "global"],
+      "complexity": "simple",
+      "filePath": "data/dashboard-data.js"
+    },
+    {
+      "id": "file:data/Sale Target.csv",
+      "type": "file",
+      "name": "Sale Target.csv",
+      "summary": "CSV file containing per-salesperson monthly sales targets for renew and new sale types in 2026. Columns include sales name, sale group, annual renew total, monthly renew targets (Jan–Dec), annual new total, and monthly new targets.",
+      "tags": ["csv", "data", "targets", "sales"],
+      "complexity": "simple",
+      "filePath": "data/Sale Target.csv"
+    },
+    {
+      "id": "file:data/Stage Mapping.csv",
+      "type": "file",
+      "name": "Stage Mapping.csv",
+      "summary": "CSV file mapping sale groups and sale types to pipeline categories (e.g. Subscription Renew, Corporate, Government Deal Focus, Connectivity). Used to classify deals into the correct pipeline counting buckets per group/type combination.",
+      "tags": ["csv", "data", "mapping", "pipeline", "stage"],
+      "complexity": "simple",
+      "filePath": "data/Stage Mapping.csv"
+    },
+    {
+      "id": "document:docs/CHART_STANDARDS.md",
+      "type": "document",
+      "name": "CHART_STANDARDS.md",
+      "summary": "Defines the visual and behavioral standard for Target vs Actual bar charts used throughout the dashboard. Specifies three-layer rendering (target base, actual bar, target outline), tooltip hover rules, color themes per sale type, and gap calculation convention. Applied to Overview monthly chart, Revenue Performance chart, and Revenue Schedule chart.",
+      "tags": ["documentation", "chart", "standards", "ui"],
+      "complexity": "simple",
+      "filePath": "docs/CHART_STANDARDS.md"
+    },
+    {
+      "id": "file:scripts/preview-server.js",
+      "type": "file",
+      "name": "preview-server.js",
+      "summary": "Minimal Node.js HTTP static file server for local development preview. Serves files from the project root with correct MIME types for HTML, CSS, JS, CSV, JSON, and image formats. Configurable port and host via environment variables or CLI args.",
+      "tags": ["javascript", "node", "server", "dev-tools"],
+      "complexity": "simple",
+      "filePath": "scripts/preview-server.js"
+    },
+    {
+      "id": "file:scripts/push-to-github.ps1",
+      "type": "file",
+      "name": "push-to-github.ps1",
+      "summary": "PowerShell deployment script for committing and pushing the dashboard to GitHub. Validates the git remote, finds git and node executables, supports dry-run via -NoPush flag and auto-confirm via -Yes flag. Includes Thai-language error messages for developer convenience.",
+      "tags": ["powershell", "deployment", "git", "script"],
+      "complexity": "moderate",
+      "filePath": "scripts/push-to-github.ps1"
+    },
+    {
+      "id": "file:scripts/revenue-logic.js",
+      "type": "file",
+      "name": "revenue-logic.js",
+      "summary": "Pure, dependency-injected revenue scheduling library exposed as window.RevenueLogic and as a CommonJS module. Computes per-deal revenue schedules (one-time, recurring, MRR-inferred), allocates contract amounts across months with penny-rounding, and builds a recurring target projection from prior-year revenue schedules.",
+      "tags": ["javascript", "revenue", "scheduling", "pure-logic", "isomorphic"],
+      "complexity": "complex",
+      "filePath": "scripts/revenue-logic.js"
+    },
+    {
+      "id": "file:scripts/test-revenue-logic.js",
+      "type": "file",
+      "name": "test-revenue-logic.js",
+      "summary": "Node.js test suite for revenue-logic.js using node:assert. Covers one-time billing, recurring billing with contract start/end, expected-date fallback, stage-change-date fallback, MRR mismatch detection, and buildRecurringTargetFromRevenue. Runs standalone via `node test-revenue-logic.js`.",
+      "tags": ["javascript", "tests", "node", "assert"],
+      "complexity": "moderate",
+      "filePath": "scripts/test-revenue-logic.js"
+    },
+    {
+      "id": "function:app.js:parseCsv",
+      "type": "function",
+      "name": "parseCsv",
+      "summary": "Parses raw CSV text into an array of objects keyed by header row. Handles quoted fields, escaped quotes, and trims whitespace. Entry point for all CSV data ingestion in the app.",
+      "tags": ["csv", "parsing", "utility"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:buildDashboardDataFromDeals",
+      "type": "function",
+      "name": "buildDashboardDataFromDeals",
+      "summary": "Core data-building function (~260 lines). Takes parsed deal rows and converts them into the full dashboardData shape including facts per sale/month/category, open deals, deal details, stage weights, and quality metrics. Called after CSV upload and on refresh.",
+      "tags": ["data-processing", "deals", "csv", "core"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:buildTargetSalesFromRows",
+      "type": "function",
+      "name": "buildTargetSalesFromRows",
+      "summary": "Parses Sale Target CSV rows into structured sales target objects per salesperson, sale type, year, and month. Applies active mappings to classify each target record into the correct category.",
+      "tags": ["csv", "target", "sales", "parsing"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:calcScope",
+      "type": "function",
+      "name": "calcScope",
+      "summary": "Computes the current filter scope object from global state (selected sale, period, category, search, week). The scope object is passed to all render functions to ensure consistent filtering across views.",
+      "tags": ["filter", "state", "scope"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:filteredDeals",
+      "type": "function",
+      "name": "filteredDeals",
+      "summary": "Returns deals filtered by scope (sale, period/week, category, search, status). Supports options for including won/lost deals and excluding global search. Central filtering function used by all chart and table renderers.",
+      "tags": ["filter", "deals", "core"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:renderMonthlyChart",
+      "type": "function",
+      "name": "renderMonthlyChart",
+      "summary": "Renders the Target vs Actual bar chart by month in the Overview tab. Uses the three-layer bar pattern defined in CHART_STANDARDS.md — target base, actual solid fill, and target outline overlay.",
+      "tags": ["chart", "rendering", "overview", "monthly"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:buildRevenueAnalysis",
+      "type": "function",
+      "name": "buildRevenueAnalysis",
+      "summary": "Orchestrates the full revenue analysis for the current scope. Calls revenueScheduleForDeal for each deal, aggregates monthly revenue entries, groups by sale and month, and computes exception and data-check lists.",
+      "tags": ["revenue", "analysis", "orchestration"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:renderRevenueAnalysis",
+      "type": "function",
+      "name": "renderRevenueAnalysis",
+      "summary": "Top-level renderer for the Revenue Analysis tab. Delegates to renderRevenueSummary, renderRevenueMonthlyChart, renderRevenueBySale, renderRevenueDetailTable, renderRevenueExceptionTable, and renderRevenuePerformance sub-renderers.",
+      "tags": ["revenue", "rendering", "tab"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:initFilters",
+      "type": "function",
+      "name": "initFilters",
+      "summary": "Initializes all filter UI controls — sale selector, period selector, category buttons, week selector, search input. Attaches event listeners that update global state and trigger re-renders.",
+      "tags": ["filter", "ui", "initialization"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:handleCsvRefresh",
+      "type": "function",
+      "name": "handleCsvRefresh",
+      "summary": "Async handler for CSV file uploads. Reads the uploaded file, determines if it is a deal CSV, target CSV, or mapping CSV, validates rows, rebuilds dashboard data, persists to localStorage, and triggers a full re-render.",
+      "tags": ["csv", "upload", "async", "data-loading"],
+      "complexity": "complex",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:render",
+      "type": "function",
+      "name": "render",
+      "summary": "Top-level render function. Recomputes scope, updates filter UI, renders meta, KPIs, and delegates to renderActiveTabView. Called whenever state changes.",
+      "tags": ["rendering", "core", "state"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:app.js:parseMappingCsv",
+      "type": "function",
+      "name": "parseMappingCsv",
+      "summary": "Parses Stage Mapping CSV text into a structured mappings object containing pipelineGroupMap, stageMap, dealTypeMap, and salesGroupMap. Handles both the stage-mapping and pipeline-rule formats.",
+      "tags": ["csv", "mapping", "pipeline", "parsing"],
+      "complexity": "moderate",
+      "filePath": "app.js"
+    },
+    {
+      "id": "function:scripts/revenue-logic.js:createRevenueLogic",
+      "type": "function",
+      "name": "createRevenueLogic",
+      "summary": "Factory function that validates required dependency functions and returns the revenue logic API object. Implements dependency injection so the same logic runs in both browser (app.js) and Node.js (tests).",
+      "tags": ["factory", "dependency-injection", "revenue"],
+      "complexity": "moderate",
+      "filePath": "scripts/revenue-logic.js"
+    },
+    {
+      "id": "function:scripts/revenue-logic.js:revenueScheduleForDeal",
+      "type": "function",
+      "name": "revenueScheduleForDeal",
+      "summary": "Core function that computes a deal's complete revenue schedule. Determines billing type (one-time vs recurring), resolves contract start/end from multiple date fields with fallback priority, calculates monthsCount from end date, period field, or MRR inference, and allocates the total amount across months with penny-rounding. Returns entries, months, contractRange, revenueRule, and diagnostic flags.",
+      "tags": ["revenue", "scheduling", "core", "allocation"],
+      "complexity": "complex",
+      "filePath": "scripts/revenue-logic.js"
+    },
+    {
+      "id": "function:scripts/revenue-logic.js:allocateRevenueAmount",
+      "type": "function",
+      "name": "allocateRevenueAmount",
+      "summary": "Distributes a total contract amount evenly across N months using integer-cent arithmetic to eliminate floating-point rounding errors. Remainder cents are distributed to the first months.",
+      "tags": ["revenue", "allocation", "math", "utility"],
+      "complexity": "moderate",
+      "filePath": "scripts/revenue-logic.js"
+    },
+    {
+      "id": "function:scripts/revenue-logic.js:buildRecurringTargetFromRevenue",
+      "type": "function",
+      "name": "buildRecurringTargetFromRevenue",
+      "summary": "Projects next-year recurring revenue targets from prior-year deal schedules. Filters won/pre-won recurring deals whose contracts extend into the target year and aggregates their monthly allocations as a baseline target.",
+      "tags": ["revenue", "target", "recurring", "projection"],
+      "complexity": "complex",
+      "filePath": "scripts/revenue-logic.js"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:app.js",
+      "target": "file:data/dashboard-data.js",
+      "type": "imports",
+      "label": "reads window.DASHBOARD_DATA at startup"
+    },
+    {
+      "source": "file:app.js",
+      "target": "file:scripts/revenue-logic.js",
+      "type": "imports",
+      "label": "uses window.RevenueLogic.createRevenueLogic"
+    },
+    {
+      "source": "file:app.js",
+      "target": "file:data/Sale Target.csv",
+      "type": "reads_from",
+      "label": "auto-loads and parses Sale Target.csv on startup"
+    },
+    {
+      "source": "file:app.js",
+      "target": "file:data/Stage Mapping.csv",
+      "type": "reads_from",
+      "label": "auto-loads and parses Stage Mapping.csv on startup"
+    },
+    {
+      "source": "file:scripts/test-revenue-logic.js",
+      "target": "file:scripts/revenue-logic.js",
+      "type": "imports",
+      "label": "require('./revenue-logic.js')"
+    },
+    {
+      "source": "file:scripts/revenue-logic.js",
+      "target": "file:scripts/test-revenue-logic.js",
+      "type": "tested_by",
+      "label": "unit-tested by test-revenue-logic.js"
+    },
+    {
+      "source": "document:docs/CHART_STANDARDS.md",
+      "target": "file:app.js",
+      "type": "documents",
+      "label": "defines Target vs Actual bar chart standard used in app.js"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:parseCsv",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:buildDashboardDataFromDeals",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:buildTargetSalesFromRows",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:calcScope",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:filteredDeals",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:renderMonthlyChart",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:buildRevenueAnalysis",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:renderRevenueAnalysis",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:initFilters",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:handleCsvRefresh",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:render",
+      "type": "contains"
+    },
+    {
+      "source": "file:app.js",
+      "target": "function:app.js:parseMappingCsv",
+      "type": "contains"
+    },
+    {
+      "source": "file:scripts/revenue-logic.js",
+      "target": "function:scripts/revenue-logic.js:createRevenueLogic",
+      "type": "contains"
+    },
+    {
+      "source": "file:scripts/revenue-logic.js",
+      "target": "function:scripts/revenue-logic.js:revenueScheduleForDeal",
+      "type": "contains"
+    },
+    {
+      "source": "file:scripts/revenue-logic.js",
+      "target": "function:scripts/revenue-logic.js:allocateRevenueAmount",
+      "type": "contains"
+    },
+    {
+      "source": "file:scripts/revenue-logic.js",
+      "target": "function:scripts/revenue-logic.js:buildRecurringTargetFromRevenue",
+      "type": "contains"
+    },
+    {
+      "source": "function:app.js:handleCsvRefresh",
+      "target": "function:app.js:parseCsv",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:handleCsvRefresh",
+      "target": "function:app.js:buildDashboardDataFromDeals",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:handleCsvRefresh",
+      "target": "function:app.js:buildTargetSalesFromRows",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:handleCsvRefresh",
+      "target": "function:app.js:parseMappingCsv",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:handleCsvRefresh",
+      "target": "function:app.js:render",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:render",
+      "target": "function:app.js:calcScope",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:render",
+      "target": "function:app.js:renderMonthlyChart",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:render",
+      "target": "function:app.js:renderRevenueAnalysis",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:renderRevenueAnalysis",
+      "target": "function:app.js:buildRevenueAnalysis",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:buildRevenueAnalysis",
+      "target": "function:scripts/revenue-logic.js:revenueScheduleForDeal",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:buildDashboardDataFromDeals",
+      "target": "function:app.js:filteredDeals",
+      "type": "calls"
+    },
+    {
+      "source": "function:scripts/revenue-logic.js:revenueScheduleForDeal",
+      "target": "function:scripts/revenue-logic.js:allocateRevenueAmount",
+      "type": "calls"
+    },
+    {
+      "source": "function:app.js:renderMonthlyChart",
+      "target": "document:docs/CHART_STANDARDS.md",
+      "type": "related",
+      "label": "implements Target vs Actual bar standard"
+    },
+    {
+      "source": "file:data/dashboard-data.js",
+      "target": "file:data/Sale Target.csv",
+      "type": "related",
+      "label": "both provide initial data consumed by app.js"
+    },
+    {
+      "source": "file:data/dashboard-data.js",
+      "target": "file:data/Stage Mapping.csv",
+      "type": "related",
+      "label": "both provide initial data consumed by app.js"
+    }
+  ]
+}

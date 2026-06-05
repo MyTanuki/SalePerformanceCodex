@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "louvain",
+  "totalFiles": 16,
+  "totalBatches": 2,
+  "exportsByPath": {
+    "app.js": [],
+    "data/dashboard-data.js": [],
+    "scripts/preview-server.js": [],
+    "scripts/revenue-logic.js": [],
+    "scripts/test-revenue-logic.js": []
+  },
+  "batches": [
+    {
+      "batchIndex": 1,
+      "files": [
+        {
+          "path": "CONTEXT.md",
+          "language": "markdown",
+          "sizeLines": 145,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "README.md",
+          "language": "markdown",
+          "sizeLines": 131,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "desktop.ini",
+          "language": "config",
+          "sizeLines": 4,
+          "fileCategory": "config"
+        },
+        {
+          "path": "index.html",
+          "language": "html",
+          "sizeLines": 675,
+          "fileCategory": "markup"
+        },
+        {
+          "path": "push-to-github.cmd",
+          "language": "batch",
+          "sizeLines": 6,
+          "fileCategory": "script"
+        },
+        {
+          "path": "start-preview.cmd",
+          "language": "batch",
+          "sizeLines": 20,
+          "fileCategory": "script"
+        },
+        {
+          "path": "styles.css",
+          "language": "css",
+          "sizeLines": 2899,
+          "fileCategory": "markup"
+        }
+      ],
+      "batchImportData": {
+        "CONTEXT.md": [],
+        "README.md": [],
+        "desktop.ini": [],
+        "index.html": [],
+        "push-to-github.cmd": [],
+        "start-preview.cmd": [],
+        "styles.css": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 2,
+      "files": [
+        {
+          "path": "app.js",
+          "language": "javascript",
+          "sizeLines": 5018,
+          "fileCategory": "code"
+        },
+        {
+          "path": "data/dashboard-data.js",
+          "language": "javascript",
+          "sizeLines": 73,
+          "fileCategory": "code"
+        },
+        {
+          "path": "data/Sale Target.csv",
+          "language": "csv",
+          "sizeLines": 26,
+          "fileCategory": "data"
+        },
+        {
+          "path": "data/Stage Mapping.csv",
+          "language": "csv",
+          "sizeLines": 82,
+          "fileCategory": "data"
+        },
+        {
+          "path": "docs/CHART_STANDARDS.md",
+          "language": "markdown",
+          "sizeLines": 63,
+          "fileCategory": "docs"
+        },
+        {
+          "path": "scripts/preview-server.js",
+          "language": "javascript",
+          "sizeLines": 53,
+          "fileCategory": "code"
+        },
+        {
+          "path": "scripts/push-to-github.ps1",
+          "language": "powershell",
+          "sizeLines": 211,
+          "fileCategory": "script"
+        },
+        {
+          "path": "scripts/revenue-logic.js",
+          "language": "javascript",
+          "sizeLines": 305,
+          "fileCategory": "code"
+        },
+        {
+          "path": "scripts/test-revenue-logic.js",
+          "language": "javascript",
+          "sizeLines": 286,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "app.js": [],
+        "data/dashboard-data.js": [],
+        "data/Sale Target.csv": [],
+        "data/Stage Mapping.csv": [],
+        "docs/CHART_STANDARDS.md": [],
+        "scripts/preview-server.js": [],
+        "scripts/push-to-github.ps1": [],
+        "scripts/revenue-logic.js": [],
+        "scripts/test-revenue-logic.js": []
+      },
+      "neighborMap": {}
+    }
+  ]
+}

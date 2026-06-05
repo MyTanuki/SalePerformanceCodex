@@ -1,0 +1,67 @@
+[
+  {
+    "id": "layer:presentation",
+    "name": "Presentation",
+    "description": "HTML structure, CSS styling, and UI tab endpoints rendered in the browser",
+    "nodeIds": [
+      "file:index.html",
+      "file:styles.css",
+      "endpoint:index.html:overview-tab",
+      "endpoint:index.html:sales-performance-tab",
+      "endpoint:index.html:revenue-analysis-tab",
+      "endpoint:index.html:all-deals-tab",
+      "endpoint:index.html:pipeline-risk-tab",
+      "endpoint:index.html:data-quality-tab",
+      "endpoint:index.html:new-deals-tab"
+    ]
+  },
+  {
+    "id": "layer:application-logic",
+    "name": "Application Logic",
+    "description": "Core JavaScript application code handling CSV parsing, filtering, charting, and UI rendering",
+    "nodeIds": [
+      "file:app.js"
+    ]
+  },
+  {
+    "id": "layer:business-logic",
+    "name": "Business Logic",
+    "description": "Pure domain logic for revenue recognition and recurring target calculations, isolated from UI concerns",
+    "nodeIds": [
+      "file:scripts/revenue-logic.js"
+    ]
+  },
+  {
+    "id": "layer:data",
+    "name": "Data",
+    "description": "CSV data files providing raw sales input and mapping tables, plus the skeleton data object loaded before CSV import",
+    "nodeIds": [
+      "file:data/dashboard-data.js",
+      "file:data/Sale Target.csv",
+      "file:data/Stage Mapping.csv"
+    ]
+  },
+  {
+    "id": "layer:documentation",
+    "name": "Documentation",
+    "description": "Project documentation, business context, glossary, and chart standards reference files",
+    "nodeIds": [
+      "document:CONTEXT.md",
+      "document:README.md",
+      "document:docs/CHART_STANDARDS.md"
+    ]
+  },
+  {
+    "id": "layer:dev-and-deployment",
+    "name": "Dev & Deployment",
+    "description": "Developer tooling, local preview server, git deployment scripts, test files, and OS metadata",
+    "nodeIds": [
+      "file:push-to-github.cmd",
+      "file:start-preview.cmd",
+      "file:scripts/preview-server.js",
+      "file:scripts/push-to-github.ps1",
+      "file:scripts/test-revenue-logic.js",
+      "config:desktop.ini"
+    ]
+  }
+]
