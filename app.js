@@ -4696,7 +4696,6 @@ function exportRevenueDistributionCsv() {
   const distribution = buildRevenueAnalysis(calcScope()).revenueDistribution;
   exportRevenueBreakdownCsv(distribution, `${distribution.targetYear}-revenue-distribution.csv`, {
     includePostingDate: true,
-    splitByMonthPostingDate: true,
     formatContractRange: csvDateRange,
   });
 }
