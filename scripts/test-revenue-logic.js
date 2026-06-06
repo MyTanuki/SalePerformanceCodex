@@ -180,7 +180,7 @@ const invoiceDistribution = buildInvoiceDistributionFromInvoices(
       company: "Company A",
       dealName: "Project Alpha",
       postingDate: "15/02/2026",
-      contractRange: "01/01/2026 - 31/01/2026",
+      contractRange: "15/01/2026 - 31/01/2026",
       billingType: "Recurring",
       amount: 100,
       analysisMonthKey: "2026-01",
@@ -245,6 +245,12 @@ assert.equal(alphaDetail.monthly["2026-01"], 100);
 assert.equal(alphaDetail.monthly["2026-02"], 250);
 assert.equal(alphaDetail.total, 350);
 assert.equal(alphaDetail.postingDate, "01/02/2026");
+assert.equal(alphaDetail.contractRange, "15/01/2026 - 31/01/2026 | 15/02/2026 - 28/02/2026");
+assert.deepEqual(alphaDetail.contractRanges, [
+  "15/01/2026 - 31/01/2026",
+  "01/02/2026 - 28/02/2026",
+  "15/02/2026 - 28/02/2026",
+]);
 assert.deepEqual(alphaDetail.sourceMonths, ["2026-01", "2026-02"]);
 assert.deepEqual(alphaDetail.documentNos, ["INV-001", "INV-002", "INV-003"]);
 assert.equal(betaDetail.monthly["2026-03"], 75);

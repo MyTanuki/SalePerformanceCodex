@@ -45,6 +45,28 @@
       return next.ts < current.ts ? nextValue : currentValue;
     }
 
+    function firstDateInRangeValue(value) {
+      const text = String(value ?? "");
+      const match = text.match(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/);
+      return match ? deps.parseDateValue(match[0]) : null;
+    }
+
+    function sortContractRangesChronologically(ranges) {
+      return ranges
+        .map((range, index) => ({
+          range,
+          index,
+          start: firstDateInRangeValue(range),
+        }))
+        .sort((a, b) => {
+          if (a.start && b.start && a.start.ts !== b.start.ts) return a.start.ts - b.start.ts;
+          if (a.start && !b.start) return -1;
+          if (!a.start && b.start) return 1;
+          return a.index - b.index;
+        })
+        .map((item) => item.range);
+    }
+
     function revenuePeriodMonths(deal) {
       return Number(deal.contractPeriodMonths) || deps.parsePositiveInt(deal.contractPeriodMonths);
     }
@@ -377,7 +399,7 @@
           companyCount: row.companies.size,
           details: Array.from(row.detailMap.values())
             .map((detail) => {
-              const contractRanges = Array.from(detail.contractRanges).sort();
+              const contractRanges = sortContractRangesChronologically(Array.from(detail.contractRanges));
               return {
                 ...detail,
                 contractRange:
@@ -420,6 +442,7 @@
       isRecurringBilling,
       invoiceProjectKey,
       earliestDateValue,
+      sortContractRangesChronologically,
       allocateRevenueAmount,
       revenueScheduleForDeal,
       targetYearMonths,
