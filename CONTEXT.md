@@ -76,6 +76,10 @@ _Avoid_: Transaction Detail, All Deals
 The invoice-based monthly distribution view. Detail rows are grouped by company and project/description, then invoice amounts are distributed across month columns using either Posting Date or Service Period mode.
 _Avoid_: Revenue Detail, Invoice raw rows
 
+**Revenue Invoice Reconciliation**:
+The customer-level export that compares recognized revenue against invoice amounts by month. It uses a customer-level Compare Key in the first phase because CRM deal names and invoice descriptions are not reliable project-level keys.
+_Avoid_: Project-level reconciliation, collection guarantee
+
 **Revenue Performance**:
 The management view that compares actual recurring revenue recognized from Won or Pre-Won deals against the Recurring Target for the selected period. It measures revenue achievement, not sales booking achievement.
 _Avoid_: Sales Performance, Revenue Detail

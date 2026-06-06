@@ -37,6 +37,30 @@
       return `${deps.normalizeName(invoice.company)}|${deps.normalizeName(invoice.dealName || invoice.description || "")}`;
     }
 
+    function splitCustomerProject(value) {
+      const text = String(value ?? "").trim();
+      if (!text) return { customer: "-", project: "" };
+      const [customer, ...projectParts] = text.split("|");
+      return {
+        customer: customer.trim() || "-",
+        project: projectParts.join("|").trim(),
+      };
+    }
+
+    function compareKeyForCustomer(customer) {
+      return deps.normalizeName(customer || "-");
+    }
+
+    function reconciliationStatus(revenueTotal, invoiceTotal) {
+      const revenue = deps.roundMoney(revenueTotal || 0);
+      const invoice = deps.roundMoney(invoiceTotal || 0);
+      const gap = deps.roundMoney(revenue - invoice);
+      if (revenue && !invoice) return "Revenue only";
+      if (!revenue && invoice) return "Invoice only";
+      if (!gap) return "Matched";
+      return gap > 0 ? "Under-invoiced" : "Over-invoiced";
+    }
+
     function earliestDateValue(currentValue, nextValue) {
       const current = deps.parseDateValue(currentValue);
       const next = deps.parseDateValue(nextValue);
@@ -435,12 +459,78 @@
       };
     }
 
+    function buildReconciliationRows(revenueDistribution, invoiceAnalysis) {
+      const months = revenueDistribution.months || invoiceAnalysis.months || [];
+      const rowsByKey = new Map();
+
+      function ensureRow(compareKey, customer, sale) {
+        const key = `${compareKey}|${sale || "-"}`;
+        if (!rowsByKey.has(key)) {
+          rowsByKey.set(key, {
+            compareKey,
+            customer,
+            sale: sale || "-",
+            revenueProjects: new Set(),
+            invoiceProjects: new Set(),
+            revenueMonthly: Object.fromEntries(months.map((month) => [month, 0])),
+            invoiceMonthly: Object.fromEntries(months.map((month) => [month, 0])),
+          });
+        }
+        return rowsByKey.get(key);
+      }
+
+      function addDetails(source, side) {
+        (source.rows || []).forEach((row) => {
+          (row.details || []).forEach((detail) => {
+            const detailName = `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`;
+            const { customer, project } = splitCustomerProject(detailName);
+            const compareKey = compareKeyForCustomer(customer);
+            const target = ensureRow(compareKey, customer, row.saleName || "-");
+            const projectLabel = project || detailName;
+            if (side === "revenue") target.revenueProjects.add(projectLabel);
+            if (side === "invoice") target.invoiceProjects.add(projectLabel);
+            months.forEach((month) => {
+              const amount = Number(detail.monthly?.[month] || 0);
+              if (side === "revenue") target.revenueMonthly[month] = deps.roundMoney(target.revenueMonthly[month] + amount);
+              if (side === "invoice") target.invoiceMonthly[month] = deps.roundMoney(target.invoiceMonthly[month] + amount);
+            });
+          });
+        });
+      }
+
+      addDetails(revenueDistribution, "revenue");
+      addDetails(invoiceAnalysis, "invoice");
+
+      return Array.from(rowsByKey.values())
+        .map((row) => {
+          const revenueTotal = deps.roundMoney(deps.sum(months, (month) => row.revenueMonthly[month] || 0));
+          const invoiceTotal = deps.roundMoney(deps.sum(months, (month) => row.invoiceMonthly[month] || 0));
+          const gapTotal = deps.roundMoney(revenueTotal - invoiceTotal);
+          return {
+            ...row,
+            revenueTotal,
+            invoiceTotal,
+            gapTotal,
+            status: reconciliationStatus(revenueTotal, invoiceTotal),
+          };
+        })
+        .sort(
+          (a, b) =>
+            a.customer.localeCompare(b.customer, "th", { numeric: true }) ||
+            a.sale.localeCompare(b.sale, "th", { numeric: true }) ||
+            a.compareKey.localeCompare(b.compareKey, "th", { numeric: true }),
+        );
+    }
+
     return {
       revenueDateParts,
       revenuePeriodMonths,
       isOneTimeBilling,
       isRecurringBilling,
       invoiceProjectKey,
+      splitCustomerProject,
+      compareKeyForCustomer,
+      reconciliationStatus,
       earliestDateValue,
       sortContractRangesChronologically,
       allocateRevenueAmount,
@@ -449,6 +539,7 @@
       schedulesWithMonths,
       buildRecurringTargetFromRevenue,
       buildInvoiceDistributionFromInvoices,
+      buildReconciliationRows,
     };
   }
 

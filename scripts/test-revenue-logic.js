@@ -149,9 +149,28 @@ const {
   schedulesWithMonths,
   buildRecurringTargetFromRevenue,
   invoiceProjectKey,
+  splitCustomerProject,
+  compareKeyForCustomer,
+  reconciliationStatus,
   earliestDateValue,
   buildInvoiceDistributionFromInvoices,
+  buildReconciliationRows,
 } = revenueLogic;
+
+assert.deepEqual(splitCustomerProject("Customer A | Project B"), {
+  customer: "Customer A",
+  project: "Project B",
+});
+assert.deepEqual(splitCustomerProject("Customer A"), {
+  customer: "Customer A",
+  project: "",
+});
+assert.equal(compareKeyForCustomer(" Customer A "), compareKeyForCustomer("customer a"));
+assert.equal(reconciliationStatus(100, 100), "Matched");
+assert.equal(reconciliationStatus(100, 80), "Under-invoiced");
+assert.equal(reconciliationStatus(80, 100), "Over-invoiced");
+assert.equal(reconciliationStatus(100, 0), "Revenue only");
+assert.equal(reconciliationStatus(0, 100), "Invoice only");
 
 assert.equal(
   invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A Jan", documentNo: "INV-001" }),
@@ -255,6 +274,95 @@ assert.deepEqual(alphaDetail.sourceMonths, ["2026-01", "2026-02"]);
 assert.deepEqual(alphaDetail.documentNos, ["INV-001", "INV-002", "INV-003"]);
 assert.equal(betaDetail.monthly["2026-03"], 75);
 assert.equal(betaDetail.total, 75);
+
+const reconciliationRows = buildReconciliationRows(
+  {
+    months: ["2026-01", "2026-02"],
+    rows: [
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Customer A",
+            dealName: "CRM Project",
+            monthly: { "2026-01": 100, "2026-02": 80 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Revenue Only Co",
+            dealName: "Revenue Project",
+            monthly: { "2026-01": 50, "2026-02": 0 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Matched Co",
+            dealName: "Matched Project",
+            monthly: { "2026-01": 20, "2026-02": 0 },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    months: ["2026-01", "2026-02"],
+    rows: [
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: " customer a ",
+            dealName: "Invoice Service",
+            monthly: { "2026-01": 60, "2026-02": 100 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Invoice Only Co",
+            dealName: "Invoice Project",
+            monthly: { "2026-01": 30, "2026-02": 0 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Matched Co",
+            dealName: "Matched Invoice",
+            monthly: { "2026-01": 20, "2026-02": 0 },
+          },
+        ],
+      },
+    ],
+  },
+);
+const customerAReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Customer A"));
+const revenueOnlyReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Revenue Only Co"));
+const invoiceOnlyReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Invoice Only Co"));
+const matchedReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Matched Co"));
+assert.ok(customerAReconciliation);
+assert.equal(customerAReconciliation.revenueMonthly["2026-01"], 100);
+assert.equal(customerAReconciliation.invoiceMonthly["2026-01"], 60);
+assert.equal(customerAReconciliation.revenueTotal, 180);
+assert.equal(customerAReconciliation.invoiceTotal, 160);
+assert.equal(customerAReconciliation.gapTotal, 20);
+assert.equal(customerAReconciliation.status, "Under-invoiced");
+assert.ok(customerAReconciliation.revenueProjects.has("CRM Project"));
+assert.ok(customerAReconciliation.invoiceProjects.has("Invoice Service"));
+assert.equal(revenueOnlyReconciliation.status, "Revenue only");
+assert.equal(invoiceOnlyReconciliation.status, "Invoice only");
+assert.equal(matchedReconciliation.status, "Matched");
 
 const oneTime = revenueScheduleForDeal(
   deal({

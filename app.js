@@ -261,6 +261,7 @@ const els = {
   invoiceAnalysisSummary: document.querySelector("#invoiceAnalysisSummary"),
   invoiceAnalysisTable: document.querySelector("#invoiceAnalysisTable"),
   exportInvoiceAnalysisCsv: document.querySelector("#exportInvoiceAnalysisCsv"),
+  exportRevenueInvoiceReconciliationCsv: document.querySelector("#exportRevenueInvoiceReconciliationCsv"),
   exportRevenueDetailCsv: document.querySelector("#exportRevenueDetailCsv"),
   revenueDetailMonthlyTotal: document.querySelector("#revenueDetailMonthlyTotal"),
   revenueDetailPanel: document.querySelector("#revenueDetailPanel"),
@@ -1392,6 +1393,7 @@ function initFilters() {
   els.exportRevenueTargetCsv?.addEventListener("click", exportRevenueTargetCsv);
   els.exportRevenueDistributionCsv?.addEventListener("click", exportRevenueDistributionCsv);
   els.exportInvoiceAnalysisCsv?.addEventListener("click", exportInvoiceAnalysisCsv);
+  els.exportRevenueInvoiceReconciliationCsv?.addEventListener("click", exportRevenueInvoiceReconciliationCsv);
   els.exportRevenueDetailCsv?.addEventListener("click", exportRevenueDetailCsv);
   els.clearCsvFiles.addEventListener("click", () => {
     els.targetCsvInput.value = "";
@@ -3912,6 +3914,22 @@ function schedulesWithMonths(schedules, monthSet) {
   return revenueLogic.schedulesWithMonths(schedules, monthSet);
 }
 
+function splitCustomerProject(value) {
+  return revenueLogic.splitCustomerProject(value);
+}
+
+function compareKeyForCustomer(customer) {
+  return revenueLogic.compareKeyForCustomer(customer);
+}
+
+function reconciliationStatus(revenueTotal, invoiceTotal) {
+  return revenueLogic.reconciliationStatus(revenueTotal, invoiceTotal);
+}
+
+function buildReconciliationRows(revenueDistribution, invoiceAnalysis) {
+  return revenueLogic.buildReconciliationRows(revenueDistribution, invoiceAnalysis);
+}
+
 function invoiceMatchesGlobalSearch(invoice, search = state.search) {
   const q = normalizeSearch(search);
   if (!q) return true;
@@ -4695,6 +4713,7 @@ function exportRevenueTargetCsv() {
 function exportRevenueDistributionCsv() {
   const distribution = buildRevenueAnalysis(calcScope()).revenueDistribution;
   exportRevenueBreakdownCsv(distribution, `${distribution.targetYear}-revenue-distribution.csv`, {
+    includeComparisonColumns: true,
     includePostingDate: true,
     formatContractRange: csvDateRange,
   });
@@ -4703,14 +4722,52 @@ function exportRevenueDistributionCsv() {
 function exportInvoiceAnalysisCsv() {
   const invoiceAnalysis = buildRevenueAnalysis(calcScope()).invoiceAnalysis;
   exportRevenueBreakdownCsv(invoiceAnalysis, `${invoiceAnalysis.targetYear}-invoice-analysis-${state.invoiceDateMode}.csv`, {
+    includeComparisonColumns: true,
     includePostingDate: true,
     formatContractRange: csvDateRange,
   });
 }
 
+function exportRevenueInvoiceReconciliationCsv() {
+  const analysis = buildRevenueAnalysis(calcScope());
+  const months = analysis.revenueDistribution.months || [];
+  const headers = [
+    "Compare Key",
+    "Customer",
+    "Sale",
+    "Revenue Projects",
+    "Invoice Projects",
+    ...months.flatMap((month) => [`${monthLabel(month)} Revenue`, `${monthLabel(month)} Invoice`, `${monthLabel(month)} Gap`]),
+    "Revenue Total",
+    "Invoice Total",
+    "Gap Total",
+    "Status",
+  ];
+  const rows = buildReconciliationRows(analysis.revenueDistribution, analysis.invoiceAnalysis).map((row) => [
+    row.compareKey,
+    row.customer,
+    row.sale,
+    Array.from(row.revenueProjects).sort().join(" | "),
+    Array.from(row.invoiceProjects).sort().join(" | "),
+    ...months.flatMap((month) => {
+      const revenue = row.revenueMonthly[month] || 0;
+      const invoice = row.invoiceMonthly[month] || 0;
+      return [revenue, invoice, roundMoney(revenue - invoice)];
+    }),
+    row.revenueTotal,
+    row.invoiceTotal,
+    row.gapTotal,
+    row.status,
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  downloadTextFile(`${analysis.revenueDistribution.targetYear}-revenue-invoice-reconciliation.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+}
+
 function exportRevenueBreakdownCsv(target, fileName, options = {}) {
   const formatContractRange = options.formatContractRange || ((value) => value);
+  const includeComparisonColumns = Boolean(options.includeComparisonColumns);
   const headers = [
+    ...(includeComparisonColumns ? ["Compare Key", "Customer", "Project/Description"] : []),
     "Sale",
     "Customer/Project",
     ...(options.includePostingDate ? ["Posting Date"] : []),
@@ -4722,6 +4779,9 @@ function exportRevenueBreakdownCsv(target, fileName, options = {}) {
   const exportRows = target.rows.flatMap((row) =>
     (row.details || []).flatMap((detail) => {
       const detailName = `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`;
+      const { customer, project } = splitCustomerProject(detailName);
+      const compareKey = compareKeyForCustomer(customer);
+      const comparisonColumns = includeComparisonColumns ? [compareKey, customer, project] : [];
       const baseColumns = [row.saleName, detailName];
       if (options.splitByMonthPostingDate) {
         return target.months
@@ -4734,6 +4794,7 @@ function exportRevenueBreakdownCsv(target, fileName, options = {}) {
               postingDate,
               amount,
               row: [
+                ...comparisonColumns,
                 ...baseColumns,
                 csvDate(postingDate),
                 formatContractRange(detail.contractRange || "-"),
@@ -4752,6 +4813,7 @@ function exportRevenueBreakdownCsv(target, fileName, options = {}) {
           postingDate,
           amount,
           row: [
+            ...comparisonColumns,
             ...baseColumns,
             ...(options.includePostingDate ? [csvDate(postingDate)] : []),
             formatContractRange(detail.contractRange || "-"),
