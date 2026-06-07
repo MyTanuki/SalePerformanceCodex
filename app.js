@@ -1854,7 +1854,9 @@ function setAutoLoadedFileName(kind, fileName) {
   const target = kind === "target" ? els.targetAutoFileName : els.mappingAutoFileName;
   if (!target) return;
   target.hidden = !fileName;
-  target.textContent = fileName ? `${fileName} - โหลดขึ้นระบบเรียบร้อยแล้ว` : "";
+  target.innerHTML = fileName
+    ? `${escapeHtml(fileName)} - <span class="autoload-ready">โหลดขึ้นระบบเรียบร้อยแล้ว</span>`
+    : "";
 }
 
 function pipelineMatchingGroups() {
