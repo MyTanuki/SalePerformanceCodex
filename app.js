@@ -3408,8 +3408,8 @@ function renderTransactionTable(scope) {
 function dealMatchesAndNotTerms(deal, andTerms, notTerms) {
   const text = transactionSearchText(deal);
   const tokens = transactionSearchTokens(deal);
-  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
-  if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
+  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens, deal))) return false;
+  if (notTerms.some((term) => transactionTermMatches(term, text, tokens, deal))) return false;
   return true;
 }
 
@@ -3612,8 +3612,28 @@ function countingSearchValues(deal) {
   return values.filter(Boolean);
 }
 
-function transactionTermMatches(term, text, tokens) {
-  if (term.startsWith("not ")) return transactionTermMatches(term.slice(4).trim(), text, tokens);
+function transactionTermMatches(term, text, tokens, deal) {
+  if (term.startsWith("not ")) return transactionTermMatches(term.slice(4).trim(), text, tokens, deal);
+  
+  if (deal && term.includes(":")) {
+    const splitIndex = term.indexOf(":");
+    const column = term.slice(0, splitIndex).trim().toLowerCase();
+    const query = term.slice(splitIndex + 1).trim();
+    if (column && query) {
+      let value = "";
+      if (column === "id") value = deal.id || "";
+      else if (column === "sale") value = `${deal.saleName || ""} ${deal.group || ""}`;
+      else if (column === "company" || column === "deal") value = `${deal.company || ""} ${deal.dealName || ""}`;
+      else if (column === "type" || column === "category") value = deal.category || "";
+      else if (column === "stage") value = `${deal.stage || ""} ${deal.rawStage || ""}`;
+      else if (column === "expected") value = deal.expectedDate || displayDate(deal.expectedDate) || "";
+      
+      if (value) {
+        return normalizeSearch(value).includes(query);
+      }
+    }
+  }
+
   if (term === "new" || term === "renew") return tokens.has(term);
   return text.includes(term);
 }
@@ -4941,8 +4961,8 @@ function filteredRevenueDetailRows(detailRows) {
 function revenueRowMatchesAndNotTerms(row, andTerms, notTerms) {
   const text = revenueSearchText(row);
   const tokens = revenueSearchTokens(row);
-  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens))) return false;
-  if (notTerms.some((term) => transactionTermMatches(term, text, tokens))) return false;
+  if (andTerms.some((term) => !transactionTermMatches(term, text, tokens, row))) return false;
+  if (notTerms.some((term) => transactionTermMatches(term, text, tokens, row))) return false;
   return true;
 }
 
@@ -5607,3 +5627,6 @@ function render() {
 initFilters();
 render();
 autoLoadDefaultSetupFiles();
+
+
+
