@@ -33,6 +33,64 @@
       return null;
     }
 
+    function invoiceProjectKey(invoice) {
+      return `${deps.normalizeName(invoice.company)}|${deps.normalizeName(invoice.dealName || invoice.description || "")}`;
+    }
+
+    function splitCustomerProject(value) {
+      const text = String(value ?? "").trim();
+      if (!text) return { customer: "-", project: "" };
+      const [customer, ...projectParts] = text.split("|");
+      return {
+        customer: customer.trim() || "-",
+        project: projectParts.join("|").trim(),
+      };
+    }
+
+    function compareKeyForCustomer(customer) {
+      return deps.normalizeName(customer || "-");
+    }
+
+    function reconciliationStatus(revenueTotal, invoiceTotal) {
+      const revenue = deps.roundMoney(revenueTotal || 0);
+      const invoice = deps.roundMoney(invoiceTotal || 0);
+      const gap = deps.roundMoney(revenue - invoice);
+      if (revenue && !invoice) return "Revenue only";
+      if (!revenue && invoice) return "Invoice only";
+      if (!gap) return "Matched";
+      return gap > 0 ? "Under-invoiced" : "Over-invoiced";
+    }
+
+    function earliestDateValue(currentValue, nextValue) {
+      const current = deps.parseDateValue(currentValue);
+      const next = deps.parseDateValue(nextValue);
+      if (!current) return nextValue || currentValue || "";
+      if (!next) return currentValue || nextValue || "";
+      return next.ts < current.ts ? nextValue : currentValue;
+    }
+
+    function firstDateInRangeValue(value) {
+      const text = String(value ?? "");
+      const match = text.match(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/);
+      return match ? deps.parseDateValue(match[0]) : null;
+    }
+
+    function sortContractRangesChronologically(ranges) {
+      return ranges
+        .map((range, index) => ({
+          range,
+          index,
+          start: firstDateInRangeValue(range),
+        }))
+        .sort((a, b) => {
+          if (a.start && b.start && a.start.ts !== b.start.ts) return a.start.ts - b.start.ts;
+          if (a.start && !b.start) return -1;
+          if (!a.start && b.start) return 1;
+          return a.index - b.index;
+        })
+        .map((item) => item.range);
+    }
+
     function revenuePeriodMonths(deal) {
       return Number(deal.contractPeriodMonths) || deps.parsePositiveInt(deal.contractPeriodMonths);
     }
@@ -197,6 +255,16 @@
       return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
     }
 
+    function schedulesWithMonths(schedules, monthSet) {
+      return schedules
+        .map((schedule) => ({
+          ...schedule,
+          entries: schedule.entries.filter((entry) => monthSet.has(entry.monthKey)),
+          months: schedule.months.filter((month) => monthSet.has(month)),
+        }))
+        .filter((schedule) => schedule.entries.length);
+    }
+
     function buildRecurringTargetFromRevenue(schedules, targetYear) {
       const sourceYear = targetYear - 1;
       const targetMonths = targetYearMonths(targetYear);
@@ -289,15 +357,189 @@
       };
     }
 
+    function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
+      const months = targetYearMonths(targetYear);
+      const monthSet = new Set(months);
+      const rowsByKey = new Map();
+      const monthlyTotals = Object.fromEntries(months.map((month) => [month, 0]));
+      const invoiceKeys = new Set();
+
+      invoices
+        .filter((invoice) => monthSet.has(invoice.analysisMonthKey))
+        .forEach((invoice) => {
+          const key = `${invoice.saleKey || invoice.saleName}|${invoice.category || "-"}|${invoice.group || "-"}`;
+          if (!rowsByKey.has(key)) {
+            rowsByKey.set(key, {
+              key,
+              saleName: invoice.saleName || "-",
+              group: invoice.group || "-",
+              category: invoice.category || "-",
+              monthly: Object.fromEntries(months.map((month) => [month, 0])),
+              deals: new Set(),
+              companies: new Set(),
+              detailMap: new Map(),
+            });
+          }
+          const row = rowsByKey.get(key);
+          const detailKey = invoiceProjectKey(invoice);
+          if (!row.detailMap.has(detailKey)) {
+            row.detailMap.set(detailKey, {
+              key: detailKey,
+              company: invoice.company || "-",
+              dealName: invoice.dealName || invoice.documentNo || "-",
+              postingDate: invoice.postingDate || "-",
+              contractRange: invoice.contractRange || invoice.postingDate || "-",
+              billingType: [invoice.category, invoice.billingType].filter(Boolean).join(" / ") || "-",
+              monthly: Object.fromEntries(months.map((month) => [month, 0])),
+              total: 0,
+              sourceMonths: new Set(),
+              documentNos: new Set(),
+              contractRanges: new Set(),
+              postingDates: new Set(),
+            });
+          }
+          const detail = row.detailMap.get(detailKey);
+          detail.postingDate = earliestDateValue(detail.postingDate, invoice.postingDate || "");
+          if (invoice.contractRange) detail.contractRanges.add(invoice.contractRange);
+          if (invoice.postingDate) detail.postingDates.add(invoice.postingDate);
+          if (invoice.documentNo || invoice.id) detail.documentNos.add(invoice.documentNo || invoice.id);
+          row.monthly[invoice.analysisMonthKey] = deps.roundMoney(row.monthly[invoice.analysisMonthKey] + invoice.amount);
+          detail.monthly[invoice.analysisMonthKey] = deps.roundMoney(
+            detail.monthly[invoice.analysisMonthKey] + invoice.amount,
+          );
+          detail.total = deps.roundMoney(detail.total + invoice.amount);
+          detail.sourceMonths.add(invoice.analysisMonthKey);
+          row.deals.add(detailKey);
+          row.companies.add(invoice.company || invoice.dealName || invoice.documentNo || "-");
+          monthlyTotals[invoice.analysisMonthKey] = deps.roundMoney(monthlyTotals[invoice.analysisMonthKey] + invoice.amount);
+          invoiceKeys.add(detailKey);
+        });
+
+      const rows = Array.from(rowsByKey.values())
+        .map((row) => ({
+          ...row,
+          total: deps.roundMoney(deps.sum(months, (month) => row.monthly[month] || 0)),
+          dealCount: row.deals.size,
+          companyCount: row.companies.size,
+          details: Array.from(row.detailMap.values())
+            .map((detail) => {
+              const contractRanges = sortContractRangesChronologically(Array.from(detail.contractRanges));
+              return {
+                ...detail,
+                contractRange:
+                  contractRanges.length > 1 ? `${contractRanges[0]} | ${contractRanges.at(-1)}` : detail.contractRange,
+                sourceMonths: Array.from(detail.sourceMonths).sort(),
+                documentNos: Array.from(detail.documentNos).sort(),
+                contractRanges,
+                postingDates: Array.from(detail.postingDates).sort(),
+              };
+            })
+            .sort(
+              (a, b) =>
+                b.total - a.total ||
+                a.company.localeCompare(b.company, "th", { numeric: true }) ||
+                a.dealName.localeCompare(b.dealName, "th", { numeric: true }),
+            ),
+        }))
+        .sort(
+          (a, b) =>
+            a.group.localeCompare(b.group, "th", { numeric: true }) ||
+            a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
+            a.category.localeCompare(b.category, "th", { numeric: true }),
+        );
+
+      return {
+        sourceYear: targetYear,
+        targetYear,
+        months,
+        rows,
+        monthlyTotals,
+        total: deps.roundMoney(deps.sum(months, (month) => monthlyTotals[month] || 0)),
+        dealCount: invoiceKeys.size,
+      };
+    }
+
+    function buildReconciliationRows(revenueDistribution, invoiceAnalysis) {
+      const months = revenueDistribution.months || invoiceAnalysis.months || [];
+      const rowsByKey = new Map();
+
+      function ensureRow(compareKey, customer, sale) {
+        const key = `${compareKey}|${sale || "-"}`;
+        if (!rowsByKey.has(key)) {
+          rowsByKey.set(key, {
+            compareKey,
+            customer,
+            sale: sale || "-",
+            revenueProjects: new Set(),
+            invoiceProjects: new Set(),
+            revenueMonthly: Object.fromEntries(months.map((month) => [month, 0])),
+            invoiceMonthly: Object.fromEntries(months.map((month) => [month, 0])),
+          });
+        }
+        return rowsByKey.get(key);
+      }
+
+      function addDetails(source, side) {
+        (source.rows || []).forEach((row) => {
+          (row.details || []).forEach((detail) => {
+            const detailName = `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`;
+            const { customer, project } = splitCustomerProject(detailName);
+            const compareKey = compareKeyForCustomer(customer);
+            const target = ensureRow(compareKey, customer, row.saleName || "-");
+            const projectLabel = project || detailName;
+            if (side === "revenue") target.revenueProjects.add(projectLabel);
+            if (side === "invoice") target.invoiceProjects.add(projectLabel);
+            months.forEach((month) => {
+              const amount = Number(detail.monthly?.[month] || 0);
+              if (side === "revenue") target.revenueMonthly[month] = deps.roundMoney(target.revenueMonthly[month] + amount);
+              if (side === "invoice") target.invoiceMonthly[month] = deps.roundMoney(target.invoiceMonthly[month] + amount);
+            });
+          });
+        });
+      }
+
+      addDetails(revenueDistribution, "revenue");
+      addDetails(invoiceAnalysis, "invoice");
+
+      return Array.from(rowsByKey.values())
+        .map((row) => {
+          const revenueTotal = deps.roundMoney(deps.sum(months, (month) => row.revenueMonthly[month] || 0));
+          const invoiceTotal = deps.roundMoney(deps.sum(months, (month) => row.invoiceMonthly[month] || 0));
+          const gapTotal = deps.roundMoney(revenueTotal - invoiceTotal);
+          return {
+            ...row,
+            revenueTotal,
+            invoiceTotal,
+            gapTotal,
+            status: reconciliationStatus(revenueTotal, invoiceTotal),
+          };
+        })
+        .sort(
+          (a, b) =>
+            a.customer.localeCompare(b.customer, "th", { numeric: true }) ||
+            a.sale.localeCompare(b.sale, "th", { numeric: true }) ||
+            a.compareKey.localeCompare(b.compareKey, "th", { numeric: true }),
+        );
+    }
+
     return {
       revenueDateParts,
       revenuePeriodMonths,
       isOneTimeBilling,
       isRecurringBilling,
+      invoiceProjectKey,
+      splitCustomerProject,
+      compareKeyForCustomer,
+      reconciliationStatus,
+      earliestDateValue,
+      sortContractRangesChronologically,
       allocateRevenueAmount,
       revenueScheduleForDeal,
       targetYearMonths,
+      schedulesWithMonths,
       buildRecurringTargetFromRevenue,
+      buildInvoiceDistributionFromInvoices,
+      buildReconciliationRows,
     };
   }
 

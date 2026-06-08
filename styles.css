@@ -505,6 +505,10 @@ h2 {
   font-weight: 700;
 }
 
+.upload-box .autoload-ready {
+  color: var(--green-dark);
+}
+
 input[type="file"] {
   width: 100%;
   min-height: 44px;

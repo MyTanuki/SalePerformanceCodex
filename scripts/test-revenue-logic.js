@@ -144,7 +144,225 @@ function amounts(entries) {
   return entries.map((entry) => entry.amount);
 }
 
-const { revenueScheduleForDeal, buildRecurringTargetFromRevenue } = revenueLogic;
+const {
+  revenueScheduleForDeal,
+  schedulesWithMonths,
+  buildRecurringTargetFromRevenue,
+  invoiceProjectKey,
+  splitCustomerProject,
+  compareKeyForCustomer,
+  reconciliationStatus,
+  earliestDateValue,
+  buildInvoiceDistributionFromInvoices,
+  buildReconciliationRows,
+} = revenueLogic;
+
+assert.deepEqual(splitCustomerProject("Customer A | Project B"), {
+  customer: "Customer A",
+  project: "Project B",
+});
+assert.deepEqual(splitCustomerProject("Customer A"), {
+  customer: "Customer A",
+  project: "",
+});
+assert.equal(compareKeyForCustomer(" Customer A "), compareKeyForCustomer("customer a"));
+assert.equal(reconciliationStatus(100, 100), "Matched");
+assert.equal(reconciliationStatus(100, 80), "Under-invoiced");
+assert.equal(reconciliationStatus(80, 100), "Over-invoiced");
+assert.equal(reconciliationStatus(100, 0), "Revenue only");
+assert.equal(reconciliationStatus(0, 100), "Invoice only");
+
+assert.equal(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A Jan", documentNo: "INV-001" }),
+  invoiceProjectKey({ company: " บริษัท ก จำกัด ", dealName: "service a jan", documentNo: "INV-002" }),
+);
+assert.notEqual(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service A" }),
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", dealName: "Service B" }),
+);
+assert.equal(
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", description: "Service A", documentNo: "INV-001" }),
+  invoiceProjectKey({ company: "บริษัท ก จำกัด", description: "Service A", documentNo: "INV-002" }),
+);
+assert.equal(earliestDateValue("15/02/2026", "01/02/2026"), "01/02/2026");
+assert.equal(earliestDateValue("", "01/03/2026"), "01/03/2026");
+
+const invoiceDistribution = buildInvoiceDistributionFromInvoices(
+  [
+    {
+      id: "inv-jan-a",
+      documentNo: "INV-001",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Alpha",
+      postingDate: "15/02/2026",
+      contractRange: "15/01/2026 - 31/01/2026",
+      billingType: "Recurring",
+      amount: 100,
+      analysisMonthKey: "2026-01",
+    },
+    {
+      id: "inv-feb-a",
+      documentNo: "INV-002",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: " company a ",
+      dealName: "project alpha",
+      postingDate: "01/02/2026",
+      contractRange: "01/02/2026 - 28/02/2026",
+      billingType: "Recurring",
+      amount: 200,
+      analysisMonthKey: "2026-02",
+    },
+    {
+      id: "inv-feb-b",
+      documentNo: "INV-003",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Alpha",
+      postingDate: "10/02/2026",
+      contractRange: "15/02/2026 - 28/02/2026",
+      billingType: "Recurring",
+      amount: 50,
+      analysisMonthKey: "2026-02",
+    },
+    {
+      id: "inv-beta",
+      documentNo: "INV-004",
+      saleKey: "sale-a",
+      saleName: "Sale A",
+      group: "AM1",
+      category: "new",
+      company: "Company A",
+      dealName: "Project Beta",
+      postingDate: "05/03/2026",
+      contractRange: "01/03/2026 - 31/03/2026",
+      billingType: "Recurring",
+      amount: 75,
+      analysisMonthKey: "2026-03",
+    },
+  ],
+  2026,
+);
+assert.equal(invoiceDistribution.rows.length, 1);
+assert.equal(invoiceDistribution.dealCount, 2);
+const invoiceDetails = invoiceDistribution.rows[0].details;
+assert.equal(invoiceDetails.length, 2);
+const alphaDetail = invoiceDetails.find((detail) => normalizeName(detail.dealName) === "project alpha");
+const betaDetail = invoiceDetails.find((detail) => normalizeName(detail.dealName) === "project beta");
+assert.ok(alphaDetail);
+assert.ok(betaDetail);
+assert.equal(alphaDetail.monthly["2026-01"], 100);
+assert.equal(alphaDetail.monthly["2026-02"], 250);
+assert.equal(alphaDetail.total, 350);
+assert.equal(alphaDetail.postingDate, "01/02/2026");
+assert.equal(alphaDetail.contractRange, "15/01/2026 - 31/01/2026 | 15/02/2026 - 28/02/2026");
+assert.deepEqual(alphaDetail.contractRanges, [
+  "15/01/2026 - 31/01/2026",
+  "01/02/2026 - 28/02/2026",
+  "15/02/2026 - 28/02/2026",
+]);
+assert.deepEqual(alphaDetail.sourceMonths, ["2026-01", "2026-02"]);
+assert.deepEqual(alphaDetail.documentNos, ["INV-001", "INV-002", "INV-003"]);
+assert.equal(betaDetail.monthly["2026-03"], 75);
+assert.equal(betaDetail.total, 75);
+
+const reconciliationRows = buildReconciliationRows(
+  {
+    months: ["2026-01", "2026-02"],
+    rows: [
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Customer A",
+            dealName: "CRM Project",
+            monthly: { "2026-01": 100, "2026-02": 80 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Revenue Only Co",
+            dealName: "Revenue Project",
+            monthly: { "2026-01": 50, "2026-02": 0 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Matched Co",
+            dealName: "Matched Project",
+            monthly: { "2026-01": 20, "2026-02": 0 },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    months: ["2026-01", "2026-02"],
+    rows: [
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: " customer a ",
+            dealName: "Invoice Service",
+            monthly: { "2026-01": 60, "2026-02": 100 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Invoice Only Co",
+            dealName: "Invoice Project",
+            monthly: { "2026-01": 30, "2026-02": 0 },
+          },
+        ],
+      },
+      {
+        saleName: "Sale A",
+        details: [
+          {
+            company: "Matched Co",
+            dealName: "Matched Invoice",
+            monthly: { "2026-01": 20, "2026-02": 0 },
+          },
+        ],
+      },
+    ],
+  },
+);
+const customerAReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Customer A"));
+const revenueOnlyReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Revenue Only Co"));
+const invoiceOnlyReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Invoice Only Co"));
+const matchedReconciliation = reconciliationRows.find((row) => row.compareKey === compareKeyForCustomer("Matched Co"));
+assert.ok(customerAReconciliation);
+assert.equal(customerAReconciliation.revenueMonthly["2026-01"], 100);
+assert.equal(customerAReconciliation.invoiceMonthly["2026-01"], 60);
+assert.equal(customerAReconciliation.revenueTotal, 180);
+assert.equal(customerAReconciliation.invoiceTotal, 160);
+assert.equal(customerAReconciliation.gapTotal, 20);
+assert.equal(customerAReconciliation.status, "Under-invoiced");
+assert.ok(customerAReconciliation.revenueProjects.has("CRM Project"));
+assert.ok(customerAReconciliation.invoiceProjects.has("Invoice Service"));
+assert.equal(revenueOnlyReconciliation.status, "Revenue only");
+assert.equal(invoiceOnlyReconciliation.status, "Invoice only");
+assert.equal(matchedReconciliation.status, "Matched");
 
 const oneTime = revenueScheduleForDeal(
   deal({
@@ -175,6 +393,48 @@ assert.equal(recurring.entries.length, 12);
 assert.deepEqual(recurring.months.slice(0, 3), ["2025-01", "2025-02", "2025-03"]);
 assert.equal(amounts(recurring.entries).reduce((total, value) => total + value, 0), 120000);
 assert.ok(amounts(recurring.entries).every((value) => value === 10000));
+
+const oldContractStillActive = revenueScheduleForDeal(
+  deal({
+    id: "old-active",
+    amount: 120000,
+    billingType: "Recurring",
+    contractStartDate: "2025-07-01",
+    contractEndDate: "2026-06-30",
+    expectedDate: "2025-06-15",
+  }),
+);
+assert.equal(oldContractStillActive.entries.length, 12);
+assert.equal(oldContractStillActive.entries.filter((entry) => entry.monthKey.startsWith("2026-")).length, 6);
+assert.equal(
+  oldContractStillActive.entries
+    .filter((entry) => entry.monthKey.startsWith("2026-"))
+    .reduce((total, entry) => total + entry.amount, 0),
+  60000,
+);
+const oldContractSelectedSchedules = schedulesWithMonths([oldContractStillActive], new Set(["2026-02"]));
+assert.equal(oldContractSelectedSchedules.length, 1);
+assert.equal(oldContractSelectedSchedules[0].entries.length, 1);
+assert.deepEqual(oldContractSelectedSchedules[0].months, ["2026-02"]);
+assert.equal(oldContractSelectedSchedules[0].entries[0].monthKey, "2026-02");
+assert.equal(oldContractSelectedSchedules[0].entries[0].amount, 10000);
+
+const fallbackSchedule = revenueScheduleForDeal(
+  deal({
+    id: "fallback-active",
+    amount: 60000,
+    billingType: "Recurring",
+    contractStartDate: "",
+    contractEndDate: "",
+    contractPeriodMonths: "6",
+    expectedDate: "2026-01-15",
+  }),
+);
+assert.equal(fallbackSchedule.contractStart, "2026-01-15");
+assert.equal(fallbackSchedule.entries[0].monthKey, "2026-01");
+assert.equal(fallbackSchedule.entries[5].monthKey, "2026-06");
+assert.equal(fallbackSchedule.entries[5].monthIndex, 6);
+assert.equal(fallbackSchedule.entries[5].monthsCount, 6);
 
 revenueExpectedFallback = true;
 const expectedFallback = revenueScheduleForDeal(
