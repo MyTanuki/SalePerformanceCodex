@@ -21,6 +21,13 @@ const state = {
   category: "all",
   showUnmapped: false,
   revenueExpectedFallback: true,
+  revenueSubtab: "performance",
+  invoiceDateMode: "posting",
+  revenueTargetVisible: false,
+  revenueDistributionVisible: false,
+  revenueDetailVisible: false,
+  targetContributionVisible: false,
+  revenueDataChecksVisible: false,
   search: "",
   tab: "overview",
   statusFilters: {
@@ -45,6 +52,8 @@ const state = {
     leads: {},
   },
   revenueTargetExpanded: {},
+  revenueDistributionExpanded: {},
+  invoiceAnalysisExpanded: {},
 };
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -96,6 +105,7 @@ function createEmptyDashboardData() {
         deals: "",
         target: "",
         mapping: "",
+        invoice: "",
       },
       assumptions: [
         "Web starts empty. Upload Sale Target and Deal CSV to build the dashboard.",
@@ -121,6 +131,7 @@ function createEmptyDashboardData() {
     facts: [],
     openDeals: [],
     dealDetails: [],
+    invoiceRows: [],
     quality: emptyQuality(),
     unmappedResponsibles: [],
   };
@@ -163,6 +174,7 @@ const els = {
   targetCsvInput: document.querySelector("#targetCsvInput"),
   dealCsvInput: document.querySelector("#dealCsvInput"),
   mappingCsvInput: document.querySelector("#mappingCsvInput"),
+  invoiceCsvInput: document.querySelector("#invoiceCsvInput"),
   targetAutoFileName: document.querySelector("#targetAutoFileName"),
   mappingAutoFileName: document.querySelector("#mappingAutoFileName"),
   applyCsvFiles: document.querySelector("#applyCsvFiles"),
@@ -219,17 +231,49 @@ const els = {
   newSalesChart: document.querySelector("#newSalesChart"),
   cumulativeSalesChart: document.querySelector("#cumulativeSalesChart"),
   revenueSummary: document.querySelector("#revenueSummary"),
+  revenueSubtabButtons: Array.from(document.querySelectorAll("[data-revenue-subtab]")),
+  revenueSubtabPanels: Array.from(document.querySelectorAll("[data-revenue-panel]")),
+  revenuePerformanceSummary: document.querySelector("#revenuePerformanceSummary"),
+  revenuePerformanceChart: document.querySelector("#revenuePerformanceChart"),
+  revenuePerformanceBySale: document.querySelector("#revenuePerformanceBySale"),
+  revenuePerformanceDetail: document.querySelector("#revenuePerformanceDetail"),
   revenueMonthlyChart: document.querySelector("#revenueMonthlyChart"),
   revenueBySale: document.querySelector("#revenueBySale"),
   revenueTargetTitle: document.querySelector("#revenueTargetTitle"),
   revenueTargetDescription: document.querySelector("#revenueTargetDescription"),
+  revenueTargetPanel: document.querySelector("#revenueTargetPanel"),
+  revenueTargetToggle: document.querySelector("#revenueTargetToggle"),
+  revenueTargetBody: document.querySelector("#revenueTargetBody"),
   revenueTargetSummary: document.querySelector("#revenueTargetSummary"),
   revenueTargetTable: document.querySelector("#revenueTargetTable"),
   exportRevenueTargetCsv: document.querySelector("#exportRevenueTargetCsv"),
+  revenueDistributionTitle: document.querySelector("#revenueDistributionTitle"),
+  revenueDistributionDescription: document.querySelector("#revenueDistributionDescription"),
+  revenueDistributionPanel: document.querySelector("#revenueDistributionPanel"),
+  revenueDistributionToggle: document.querySelector("#revenueDistributionToggle"),
+  revenueDistributionBody: document.querySelector("#revenueDistributionBody"),
+  revenueDistributionSummary: document.querySelector("#revenueDistributionSummary"),
+  revenueDistributionTable: document.querySelector("#revenueDistributionTable"),
+  exportRevenueDistributionCsv: document.querySelector("#exportRevenueDistributionCsv"),
+  invoiceAnalysisTitle: document.querySelector("#invoiceAnalysisTitle"),
+  invoiceAnalysisDescription: document.querySelector("#invoiceAnalysisDescription"),
+  invoiceDateModeButtons: Array.from(document.querySelectorAll("[data-invoice-date-mode]")),
+  invoiceAnalysisSummary: document.querySelector("#invoiceAnalysisSummary"),
+  invoiceAnalysisTable: document.querySelector("#invoiceAnalysisTable"),
+  exportInvoiceAnalysisCsv: document.querySelector("#exportInvoiceAnalysisCsv"),
   exportRevenueDetailCsv: document.querySelector("#exportRevenueDetailCsv"),
   revenueDetailMonthlyTotal: document.querySelector("#revenueDetailMonthlyTotal"),
+  revenueDetailPanel: document.querySelector("#revenueDetailPanel"),
+  revenueDetailToggle: document.querySelector("#revenueDetailToggle"),
+  revenueDetailBody: document.querySelector("#revenueDetailBody"),
+  targetContributionPanel: document.querySelector("#targetContributionPanel"),
+  targetContributionToggle: document.querySelector("#targetContributionToggle"),
+  targetContributionBody: document.querySelector("#targetContributionBody"),
   revenueExpectedFallback: document.querySelector("#revenueExpectedFallback"),
   revenueDetailTable: document.querySelector("#revenueDetailTable"),
+  revenueDataChecksPanel: document.querySelector("#revenueDataChecksPanel"),
+  revenueDataChecksToggle: document.querySelector("#revenueDataChecksToggle"),
+  revenueDataChecksBody: document.querySelector("#revenueDataChecksBody"),
   revenueExceptionTable: document.querySelector("#revenueExceptionTable"),
   revenueAndInputs: Array.from(document.querySelectorAll("[data-revenue-and]")),
   revenueNotInputs: Array.from(document.querySelectorAll("[data-revenue-not]")),
@@ -708,6 +752,13 @@ function money(value) {
   return `฿${Math.round(value || 0).toLocaleString("th-TH")}`;
 }
 
+function signedMoney(value) {
+  const rounded = Math.round(value || 0);
+  if (rounded > 0) return `+${money(rounded)}`;
+  if (rounded < 0) return `-${money(Math.abs(rounded))}`;
+  return money(0);
+}
+
 function percent(value) {
   if (!Number.isFinite(value)) return "-";
   return `${(value * 100).toFixed(value >= 1 ? 0 : 1)}%`;
@@ -746,10 +797,33 @@ function monthEndDate(monthKey) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
+function addMonthsToDate(dateText, offset) {
+  const parts = parseDateValue(dateText);
+  if (!parts) return "";
+  const target = new Date(Date.UTC(parts.year, parts.month - 1 + offset, 1));
+  const year = target.getUTCFullYear();
+  const month = target.getUTCMonth() + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const day = Math.min(parts.day, lastDay);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function displayDate(dateText) {
   const parts = parseDateValue(dateText);
   if (!parts) return cleanText(dateText) || "-";
   return parts.date;
+}
+
+function displayDateDmy(dateText) {
+  const parts = parseDateValue(dateText);
+  if (!parts) return cleanText(dateText) || "-";
+  return `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}/${parts.year}`;
+}
+
+function displayDateRangeDmy(value) {
+  const text = cleanText(value);
+  if (!text || text === "-") return text || "-";
+  return text.replace(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/g, (dateText) => displayDateDmy(dateText));
 }
 
 function periodMonths() {
@@ -1133,6 +1207,18 @@ function initFilters() {
       renderFilteredView();
     });
   });
+  els.revenueSubtabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.revenueSubtab = button.dataset.revenueSubtab || "performance";
+      renderRevenueSubtabs();
+    });
+  });
+  els.invoiceDateModeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.invoiceDateMode = button.dataset.invoiceDateMode || "posting";
+      renderFilteredView();
+    });
+  });
   els.salesStatusFilters.querySelectorAll("input[data-sales-status]").forEach((input) => {
     input.addEventListener("change", () => {
       state.statusFilters[input.dataset.salesStatus] = input.checked;
@@ -1157,6 +1243,26 @@ function initFilters() {
   els.revenueExpectedFallback?.addEventListener("change", () => {
     state.revenueExpectedFallback = els.revenueExpectedFallback.checked;
     if (state.tab === "revenue") renderFilteredView();
+  });
+  els.revenueTargetToggle?.addEventListener("click", () => {
+    state.revenueTargetVisible = !state.revenueTargetVisible;
+    renderRevenueTargetVisibility();
+  });
+  els.revenueDistributionToggle?.addEventListener("click", () => {
+    state.revenueDistributionVisible = !state.revenueDistributionVisible;
+    renderRevenueDistributionVisibility();
+  });
+  els.revenueDetailToggle?.addEventListener("click", () => {
+    state.revenueDetailVisible = !state.revenueDetailVisible;
+    renderRevenueDetailVisibility();
+  });
+  els.targetContributionToggle?.addEventListener("click", () => {
+    state.targetContributionVisible = !state.targetContributionVisible;
+    renderTargetContributionVisibility();
+  });
+  els.revenueDataChecksToggle?.addEventListener("click", () => {
+    state.revenueDataChecksVisible = !state.revenueDataChecksVisible;
+    renderRevenueDataChecksVisibility();
   });
   els.transactionTable.addEventListener("click", (event) => {
     const sortButton = event.target.closest("[data-transaction-sort]");
@@ -1188,7 +1294,7 @@ function initFilters() {
     const dealRow = event.target.closest("[data-deal-key]");
     if (dealRow) openDealModal(dealRow.dataset.dealKey);
   });
-  [els.revenueDetailTable, els.revenueExceptionTable].forEach((table) => {
+  [els.revenuePerformanceDetail, els.revenueDetailTable, els.revenueExceptionTable].forEach((table) => {
     table?.addEventListener("click", (event) => {
       const dealRow = event.target.closest("[data-deal-key]");
       if (dealRow) openDealModal(dealRow.dataset.dealKey);
@@ -1199,6 +1305,20 @@ function initFilters() {
     if (!toggle) return;
     const key = toggle.dataset.revenueTargetToggle;
     state.revenueTargetExpanded[key] = !state.revenueTargetExpanded[key];
+    renderFilteredView();
+  });
+  els.revenueDistributionTable?.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-revenue-distribution-toggle]");
+    if (!toggle) return;
+    const key = toggle.dataset.revenueDistributionToggle;
+    state.revenueDistributionExpanded[key] = !state.revenueDistributionExpanded[key];
+    renderFilteredView();
+  });
+  els.invoiceAnalysisTable?.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-invoice-analysis-toggle]");
+    if (!toggle) return;
+    const key = toggle.dataset.invoiceAnalysisToggle;
+    state.invoiceAnalysisExpanded[key] = !state.invoiceAnalysisExpanded[key];
     renderFilteredView();
   });
   [els.topDealsTable, els.riskDealsTable].forEach((table) => {
@@ -1251,28 +1371,33 @@ function initFilters() {
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".week-select-control")) closeWeekSelects();
   });
-  [els.targetCsvInput, els.dealCsvInput, els.mappingCsvInput].forEach((input) => {
+  [els.targetCsvInput, els.dealCsvInput, els.mappingCsvInput, els.invoiceCsvInput].forEach((input) => {
     input.addEventListener("change", () => {
       const targetFile = els.targetCsvInput.files?.[0]?.name;
       const dealFile = els.dealCsvInput.files?.[0]?.name;
       const mappingFile = els.mappingCsvInput.files?.[0]?.name;
+      const invoiceFile = els.invoiceCsvInput.files?.[0]?.name;
       if (input === els.targetCsvInput && targetFile) setAutoLoadedFileName("target", "");
       if (input === els.mappingCsvInput && mappingFile) setAutoLoadedFileName("mapping", "");
       const selected = [
         targetFile && `Target: ${targetFile}`,
         dealFile && `Deal: ${dealFile}`,
         mappingFile && `Mapping: ${mappingFile}`,
+        invoiceFile && `Invoice: ${invoiceFile}`,
       ].filter(Boolean);
       setUploadStatus(selected.length ? selected.join(" | ") : "ยังไม่ได้เลือกไฟล์ใหม่");
     });
   });
   els.applyCsvFiles.addEventListener("click", handleCsvRefresh);
   els.exportRevenueTargetCsv?.addEventListener("click", exportRevenueTargetCsv);
+  els.exportRevenueDistributionCsv?.addEventListener("click", exportRevenueDistributionCsv);
+  els.exportInvoiceAnalysisCsv?.addEventListener("click", exportInvoiceAnalysisCsv);
   els.exportRevenueDetailCsv?.addEventListener("click", exportRevenueDetailCsv);
   els.clearCsvFiles.addEventListener("click", () => {
     els.targetCsvInput.value = "";
     els.dealCsvInput.value = "";
     els.mappingCsvInput.value = "";
+    els.invoiceCsvInput.value = "";
     setAutoLoadedFileName("target", "");
     setAutoLoadedFileName("mapping", "");
     window.localStorage.removeItem(STORED_DATA_KEY);
@@ -1513,6 +1638,10 @@ function fieldCheckRows() {
   return rows;
 }
 
+function invoiceCheckRows() {
+  return Array.isArray(dashboardData.invoiceRows) ? dashboardData.invoiceRows : [];
+}
+
 function hasFieldValue(key) {
   return fieldCheckRows().some((row) => {
     const value = row?.[key];
@@ -1544,6 +1673,14 @@ function hasMappingData(kind) {
 
 function hasAnyPipelineRule() {
   return Number(mappingCounts(activeMappings()).pipelineRules || 0) > 0;
+}
+
+function hasInvoiceFieldValue(key) {
+  return invoiceCheckRows().some((row) => {
+    const value = row?.[key];
+    if (typeof value === "number") return Number.isFinite(value) && value !== 0;
+    return cleanText(value) !== "";
+  });
 }
 
 function fieldRequirementGroups() {
@@ -1594,6 +1731,18 @@ function fieldRequirementGroups() {
         ["MRR", () => hasPositiveFieldValue("mrr")],
         ["Income / Contract Amount", amount],
         ["Expected Close Date (Fallback)", () => hasFieldValue("expectedDate")],
+      ],
+    },
+    {
+      tab: "Invoice Analysis",
+      fields: [
+        ["Invoice CSV", () => invoiceCheckRows().length > 0],
+        ["Posting Date", () => hasInvoiceFieldValue("postingDate")],
+        ["Sale Name", () => hasInvoiceFieldValue("saleName")],
+        ["Sale Group", () => hasInvoiceFieldValue("group")],
+        ["Customer / Project", () => hasInvoiceFieldValue("company") || hasInvoiceFieldValue("dealName")],
+        ["New / Renew", () => hasInvoiceFieldValue("category")],
+        ["Invoice Amount", () => hasInvoiceFieldValue("amount")],
       ],
     },
     {
@@ -1955,6 +2104,7 @@ function renderMeta() {
     <strong>As of ${escapeHtml(meta.asOfDate)}</strong><br>
     Deals: ${dashboardData.quality.dealRows.toLocaleString("th-TH")} rows<br>
     Targets: ${dashboardData.quality.targetRows.toLocaleString("th-TH")} sales<br>
+    Invoices: ${(dashboardData.invoiceRows || []).length.toLocaleString("th-TH")} rows<br>
     Built: ${escapeHtml(generated)}
   `;
   els.themeToggleButton = document.querySelector("#themeToggle");
@@ -1981,11 +2131,12 @@ async function handleCsvRefresh() {
   const targetFile = els.targetCsvInput.files?.[0];
   const dealFile = els.dealCsvInput.files?.[0];
   const mappingFile = els.mappingCsvInput.files?.[0];
-  if (!targetFile && !dealFile && !mappingFile) {
-    setUploadStatus("กรุณาเลือก Sale Target.csv, Deal.csv หรือ Data Mapping.csv อย่างน้อย 1 ไฟล์", "error");
+  const invoiceFile = els.invoiceCsvInput.files?.[0];
+  if (!targetFile && !dealFile && !mappingFile && !invoiceFile) {
+    setUploadStatus("กรุณาเลือก Sale Target.csv, Deal.csv, Data Mapping.csv หรือ Invoice.csv อย่างน้อย 1 ไฟล์", "error");
     return;
   }
-  if ([targetFile, dealFile, mappingFile].some((file) => file && !file.name.toLowerCase().endsWith(".csv"))) {
+  if ([targetFile, dealFile, mappingFile, invoiceFile].some((file) => file && !file.name.toLowerCase().endsWith(".csv"))) {
     setUploadStatus("รองรับเฉพาะไฟล์ .csv เท่านั้น", "error");
     return;
   }
@@ -2032,6 +2183,13 @@ async function handleCsvRefresh() {
       statusParts.push(`Deal ${dealRows.length.toLocaleString("th-TH")} rows`);
     }
 
+    if (invoiceFile) {
+      const invoiceRows = parseCsv(await invoiceFile.text());
+      validateInvoiceRows(invoiceRows);
+      dashboardData = mergeInvoiceRowsIntoDashboard(dashboardData, buildInvoiceRowsFromRows(invoiceRows, mappings), invoiceFile.name);
+      statusParts.push(`Invoice ${invoiceRows.length.toLocaleString("th-TH")} rows`);
+    }
+
     storeDashboardData(dashboardData);
     state.group = "all";
     state.sale = "all";
@@ -2068,6 +2226,15 @@ function validateTargetRows(rows) {
   const missing = required.filter((column) => !(column in rows[0]));
   if (missing.length) {
     throw new Error(`รูปแบบ CSV ไม่ตรงกับไฟล์ Sale Target: ขาดคอลัมน์ ${missing.join(", ")}`);
+  }
+}
+
+function validateInvoiceRows(rows) {
+  if (!rows.length) throw new Error("ไฟล์ Invoice ไม่มีข้อมูล");
+  const required = ["Document No.", "Posting Date", "Customer code", "Description", "Amount", "Sale Name", "SALES TEAM (Dimension)", "New/Renew", "Type"];
+  const missing = required.filter((column) => !(column in rows[0]));
+  if (missing.length) {
+    throw new Error(`รูปแบบ CSV ไม่ตรงกับไฟล์ Invoice: ขาดคอลัมน์ ${missing.join(", ")}`);
   }
 }
 
@@ -2123,6 +2290,101 @@ function buildTargetSalesFromRows(rows, mappings = activeMappings()) {
     });
 }
 
+function cleanInvoiceSaleName(value) {
+  return cleanText(value)
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function saleRecordForInvoiceName(rawSaleName, mappings = activeMappings()) {
+  const saleName = cleanInvoiceSaleName(rawSaleName) || cleanText(rawSaleName) || "Unknown";
+  const normalized = normalizeName(saleName);
+  const mappedSale = mappings.salesGroupMap.get(normalizeName(rawSaleName)) || mappings.salesGroupMap.get(normalized);
+  const targetSales = dashboardData.sales || [];
+  const mappedName = mappedSale?.displayName || saleName;
+  const mappedNormalized = normalizeName(mappedName);
+  const matched = targetSales.find((sale) => {
+    const saleNormalized = normalizeName(sale.name);
+    return (
+      normalized === saleNormalized ||
+      mappedNormalized === saleNormalized ||
+      normalized.includes(` ${saleNormalized}`) ||
+      mappedNormalized.includes(` ${saleNormalized}`) ||
+      saleNormalized.includes(normalized)
+    );
+  });
+  if (matched) return matched;
+  return {
+    key: makeKey(mappedName),
+    name: mappedName,
+    group: mappedSale?.group || "",
+  };
+}
+
+function buildInvoiceRowsFromRows(rows, mappings = activeMappings()) {
+  return rows
+    .map((row, index) => {
+      const postingDate = parseDateValue(row["Posting Date"]);
+      const serviceStart = parseInvoiceServiceStart(row.Period);
+      const sale = saleRecordForInvoiceName(row["Sale Name"], mappings);
+      const amount = parseMoneyValue(row.Amount);
+      const category = normalizeSaleType(row["New/Renew"]) || dealCategory(row["New/Renew"], row);
+      const group = sale.group || cleanText(row["SALES TEAM (Dimension)"]) || "Unmapped";
+      const customer = cleanText(row["Customer code"]) || cleanText(row["Sell-to Customer No."]) || "-";
+      const description = cleanText(row.Description) || cleanText(row.No) || "-";
+      return {
+        id: cleanText(row["Document No."]) || `invoice-${index + 1}`,
+        documentNo: cleanText(row["Document No."]),
+        postingDate: postingDate ? displayDateDmy(postingDate.date) : cleanText(row["Posting Date"]),
+        postingMonthKey: postingDate?.monthKey || "",
+        serviceDate: serviceStart ? displayDateDmy(serviceStart.date) : "",
+        serviceMonthKey: serviceStart?.monthKey || "",
+        monthKey: postingDate?.monthKey || "",
+        saleKey: sale.key,
+        saleName: sale.name,
+        responsible: cleanText(row["Sale Name"]),
+        group,
+        category,
+        company: customer,
+        dealName: description,
+        contractRange: displayDateRangeDmy(row.Period) || (postingDate ? displayDateDmy(postingDate.date) : "-"),
+        billingType: cleanText(row.Type) || "-",
+        product: cleanText(row.Product),
+        quantity: parseMoneyValue(row.Quantity),
+        amount: roundMoney(amount),
+        amountIncludingVat: roundMoney(parseMoneyValue(row["Amount Including VAT"])),
+        invoiceSearch: normalizeSearch(
+          `${row["Document No."] || ""} ${row["Posting Date"] || ""} ${customer} ${description} ${row.Period || ""} ${row["Sale Name"] || ""} ${group} ${row.Product || ""} ${row["New/Renew"] || ""} ${row.Type || ""} ${money(amount)}`,
+        ),
+      };
+    })
+    .filter((row) => row.monthKey && row.amount);
+}
+
+function parseInvoiceServiceStart(period) {
+  const text = cleanText(period);
+  if (!text) return null;
+  const match = text.match(/(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})/);
+  return match ? parseDateValue(match[1]) : null;
+}
+
+function mergeInvoiceRowsIntoDashboard(data, invoiceRows, fileName) {
+  return {
+    ...data,
+    metadata: {
+      ...data.metadata,
+      generatedAt: new Date().toISOString(),
+      sourceFiles: {
+        ...data.metadata.sourceFiles,
+        invoice: fileName,
+      },
+    },
+    invoiceRows,
+  };
+}
+
 function mergeTargetSalesIntoDashboard(data, targetSales, fileName) {
   const targetMap = new Map(targetSales.map((sale) => [sale.key, sale]));
   const sales = [
@@ -2153,6 +2415,7 @@ function mergeTargetSalesIntoDashboard(data, targetSales, fileName) {
     facts: data.facts.map(enrich),
     openDeals: data.openDeals.map(enrich),
     dealDetails: (data.dealDetails || []).map(enrich),
+    invoiceRows: (data.invoiceRows || []).map(enrich),
     quality: {
       ...data.quality,
       targetRows: targetSales.length,
@@ -2687,19 +2950,19 @@ function metricForMonth(month, scope, category = state.category) {
 
 function renderMonthlyChart(scope) {
   const rows = scope.months.map((month) => metricForMonth(month, scope));
-  const maxValue = Math.max(1, ...rows.flatMap((row) => [row.target, row.actual, row.forecast]));
+  const maxValue = Math.max(1, ...rows.flatMap((row) => [row.target, row.actual]));
   els.monthlyChart.innerHTML = rows
     .map((row) => {
       return `
         <div class="month-row">
           <div class="month-name">${monthLabel(row.month)}</div>
-          <div class="bar-group">
-            ${barLine("target", row.target, maxValue)}
-            ${barLine("actual", row.actual, maxValue)}
-            ${barLine("forecast", row.forecast, maxValue)}
+          <div class="sales-month-bar-space">
+            <div class="sales-month-target-base" style="width:${row.target ? Math.min(100, Math.max(2, (row.target / maxValue) * 100)) : 0}%" title="Target ${money(row.target)}"></div>
+            <div class="sales-month-actual-bar" style="width:${row.actual ? Math.min(100, Math.max(2, (row.actual / maxValue) * 100)) : 0}%" title="Actual ${money(row.actual)}"></div>
+            <div class="sales-month-target-outline" style="width:${row.target ? Math.min(100, Math.max(2, (row.target / maxValue) * 100)) : 0}%"></div>
           </div>
           <div class="bar-label">
-            ${compactMoney(row.actual)} / ${compactMoney(row.target)}<br>
+            Actual ${compactMoney(row.actual)} / Target ${compactMoney(row.target)}<br>
             <span class="muted">Forecast ${compactMoney(row.forecast)}</span>
           </div>
         </div>
@@ -3556,6 +3819,202 @@ function buildRecurringTargetFromRevenue(schedules, targetYear) {
   return revenueLogic.buildRecurringTargetFromRevenue(schedules, targetYear);
 }
 
+function buildRevenueDistributionFromRevenue(schedules, targetYear) {
+  const months = targetYearMonths(targetYear);
+  const monthSet = new Set(months);
+  const rowsByKey = new Map();
+  const monthlyTotals = Object.fromEntries(months.map((month) => [month, 0]));
+  const dealKeys = new Set();
+
+  schedules.forEach((schedule) => {
+    schedule.entries
+      .filter((entry) => monthSet.has(entry.monthKey))
+      .forEach((entry) => {
+        const deal = schedule.deal;
+        const key = `${deal.saleKey || deal.saleName}|${deal.category || "-"}|${deal.group || "-"}`;
+        if (!rowsByKey.has(key)) {
+          rowsByKey.set(key, {
+            key,
+            saleName: deal.saleName || "-",
+            group: deal.group || "-",
+            category: deal.category || "-",
+            monthly: Object.fromEntries(months.map((month) => [month, 0])),
+            deals: new Set(),
+            companies: new Set(),
+            detailMap: new Map(),
+          });
+        }
+        const row = rowsByKey.get(key);
+        const detailKey = dealDetailKey(deal);
+        if (!row.detailMap.has(detailKey)) {
+          row.detailMap.set(detailKey, {
+            key: detailKey,
+            company: deal.company || "-",
+            dealName: deal.dealName || deal.id || "-",
+            contractRange: schedule.contractRange || "-",
+            billingType: deal.billingType || "-",
+            monthly: Object.fromEntries(months.map((month) => [month, 0])),
+            postingDatesByMonth: {},
+            total: 0,
+            sourceMonths: new Set(),
+          });
+        }
+        const detail = row.detailMap.get(detailKey);
+        detail.postingDatesByMonth[entry.monthKey] = addMonthsToDate(schedule.contractStart, entry.monthIndex - 1) || `${entry.monthKey}-01`;
+        row.monthly[entry.monthKey] = roundMoney(row.monthly[entry.monthKey] + entry.amount);
+        detail.monthly[entry.monthKey] = roundMoney(detail.monthly[entry.monthKey] + entry.amount);
+        detail.total = roundMoney(detail.total + entry.amount);
+        detail.sourceMonths.add(entry.monthKey);
+        row.deals.add(detailKey);
+        row.companies.add(deal.company || deal.dealName || deal.id || "-");
+        monthlyTotals[entry.monthKey] = roundMoney(monthlyTotals[entry.monthKey] + entry.amount);
+        dealKeys.add(detailKey);
+      });
+  });
+
+  const rows = Array.from(rowsByKey.values())
+    .map((row) => ({
+      ...row,
+      total: roundMoney(sum(months, (month) => row.monthly[month] || 0)),
+      dealCount: row.deals.size,
+      companyCount: row.companies.size,
+      details: Array.from(row.detailMap.values())
+        .map((detail) => ({
+          ...detail,
+          sourceMonths: Array.from(detail.sourceMonths).sort(),
+        }))
+        .sort(
+          (a, b) =>
+            b.total - a.total ||
+            a.company.localeCompare(b.company, "th", { numeric: true }) ||
+            a.dealName.localeCompare(b.dealName, "th", { numeric: true }),
+        ),
+    }))
+    .sort(
+      (a, b) =>
+        a.group.localeCompare(b.group, "th", { numeric: true }) ||
+        a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
+        a.category.localeCompare(b.category, "th", { numeric: true }),
+    );
+
+  return {
+    sourceYear: targetYear,
+    targetYear,
+    months,
+    rows,
+    monthlyTotals,
+    total: roundMoney(sum(months, (month) => monthlyTotals[month] || 0)),
+    dealCount: dealKeys.size,
+  };
+}
+
+function invoiceMatchesGlobalSearch(invoice, search = state.search) {
+  const q = normalizeSearch(search);
+  if (!q) return true;
+  return (invoice.invoiceSearch || normalizeSearch(Object.values(invoice).join(" "))).includes(q);
+}
+
+function invoiceRowsForAnalysis(scope) {
+  const selectedSale = scope.selectedSale;
+  return (dashboardData.invoiceRows || [])
+    .filter((invoice) => categoryMatches(invoice.category))
+    .filter((invoice) => state.group === "all" || invoice.group === state.group)
+    .filter((invoice) => state.sale === "all" || itemMatchesSaleRecord(invoice, selectedSale))
+    .filter((invoice) => invoiceMatchesGlobalSearch(invoice));
+}
+
+function invoiceAnalysisMonthKey(invoice) {
+  const serviceMonth = invoice.serviceMonthKey || parseInvoiceServiceStart(invoice.contractRange)?.monthKey || "";
+  if (state.invoiceDateMode === "service") return serviceMonth || invoice.postingMonthKey || invoice.monthKey || "";
+  return invoice.postingMonthKey || invoice.monthKey || invoice.serviceMonthKey || "";
+}
+
+function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
+  const months = targetYearMonths(targetYear);
+  const monthSet = new Set(months);
+  const rowsByKey = new Map();
+  const monthlyTotals = Object.fromEntries(months.map((month) => [month, 0]));
+  const invoiceKeys = new Set();
+
+  invoices
+    .map((invoice) => ({ ...invoice, analysisMonthKey: invoiceAnalysisMonthKey(invoice) }))
+    .filter((invoice) => monthSet.has(invoice.analysisMonthKey))
+    .forEach((invoice) => {
+      const key = `${invoice.saleKey || invoice.saleName}|${invoice.category || "-"}|${invoice.group || "-"}`;
+      if (!rowsByKey.has(key)) {
+        rowsByKey.set(key, {
+          key,
+          saleName: invoice.saleName || "-",
+          group: invoice.group || "-",
+          category: invoice.category || "-",
+          monthly: Object.fromEntries(months.map((month) => [month, 0])),
+          deals: new Set(),
+          companies: new Set(),
+          detailMap: new Map(),
+        });
+      }
+      const row = rowsByKey.get(key);
+      const detailKey = `${invoice.documentNo || invoice.id}|${invoice.company}|${invoice.dealName}|${invoice.contractRange}|${invoice.amount}`;
+      if (!row.detailMap.has(detailKey)) {
+        row.detailMap.set(detailKey, {
+          key: detailKey,
+          company: invoice.company || "-",
+          dealName: invoice.dealName || invoice.documentNo || "-",
+          postingDate: invoice.postingDate || "-",
+          contractRange: invoice.contractRange || invoice.postingDate || "-",
+          billingType: [invoice.category, invoice.billingType].filter(Boolean).join(" / ") || "-",
+          monthly: Object.fromEntries(months.map((month) => [month, 0])),
+          total: 0,
+          sourceMonths: new Set(),
+        });
+      }
+      const detail = row.detailMap.get(detailKey);
+      row.monthly[invoice.analysisMonthKey] = roundMoney(row.monthly[invoice.analysisMonthKey] + invoice.amount);
+      detail.monthly[invoice.analysisMonthKey] = roundMoney(detail.monthly[invoice.analysisMonthKey] + invoice.amount);
+      detail.total = roundMoney(detail.total + invoice.amount);
+      detail.sourceMonths.add(invoice.analysisMonthKey);
+      row.deals.add(detailKey);
+      row.companies.add(invoice.company || invoice.dealName || invoice.documentNo || "-");
+      monthlyTotals[invoice.analysisMonthKey] = roundMoney(monthlyTotals[invoice.analysisMonthKey] + invoice.amount);
+      invoiceKeys.add(detailKey);
+    });
+
+  const rows = Array.from(rowsByKey.values())
+    .map((row) => ({
+      ...row,
+      total: roundMoney(sum(months, (month) => row.monthly[month] || 0)),
+      dealCount: row.deals.size,
+      companyCount: row.companies.size,
+      details: Array.from(row.detailMap.values())
+        .map((detail) => ({
+          ...detail,
+          sourceMonths: Array.from(detail.sourceMonths).sort(),
+        }))
+        .sort(
+          (a, b) =>
+            b.total - a.total ||
+            a.company.localeCompare(b.company, "th", { numeric: true }) ||
+            a.dealName.localeCompare(b.dealName, "th", { numeric: true }),
+        ),
+    }))
+    .sort(
+      (a, b) =>
+        a.group.localeCompare(b.group, "th", { numeric: true }) ||
+        a.saleName.localeCompare(b.saleName, "th", { numeric: true }) ||
+        a.category.localeCompare(b.category, "th", { numeric: true }),
+    );
+
+  return {
+    sourceYear: targetYear,
+    targetYear,
+    months,
+    rows,
+    monthlyTotals,
+    total: roundMoney(sum(months, (month) => monthlyTotals[month] || 0)),
+    dealCount: invoiceKeys.size,
+  };
+}
+
 function buildRevenueAnalysis(scope) {
   const baseDeals = filteredDeals(scope, { period: false, countingIncluded: true })
     .filter((deal) => deal.status === "won");
@@ -3563,7 +4022,10 @@ function buildRevenueAnalysis(scope) {
     .filter((deal) => deal.status === "won");
   const schedules = baseDeals.map(revenueScheduleForDeal);
   const targetSchedules = targetBaseDeals.map(revenueScheduleForDeal);
-  const recurringTarget = buildRecurringTargetFromRevenue(targetSchedules, revenueTargetYearFromScope(scope));
+  const revenueYear = revenueTargetYearFromScope(scope);
+  const recurringTarget = buildRecurringTargetFromRevenue(targetSchedules, revenueYear);
+  const revenueDistribution = buildRevenueDistributionFromRevenue(schedules, revenueYear);
+  const invoiceAnalysis = buildInvoiceDistributionFromInvoices(invoiceRowsForAnalysis(scope), revenueYear);
   const selectedEntries = schedules
     .flatMap((schedule) =>
       schedule.entries.map((entry) => ({
@@ -3624,6 +4086,8 @@ function buildRevenueAnalysis(scope) {
     detailRows,
     exceptionRows,
     recurringTarget,
+    revenueDistribution,
+    invoiceAnalysis,
   };
 }
 
@@ -3689,12 +4153,313 @@ function revenueExceptionRow(schedule) {
 
 function renderRevenueAnalysis(scope) {
   const analysis = buildRevenueAnalysis(scope);
+  const performance = buildRevenuePerformance(analysis, scope);
+  renderRevenueSubtabs();
   renderRevenueSummary(analysis, scope);
+  renderRevenuePerformance(performance, scope);
   renderRevenueMonthlyChart(analysis);
   renderRevenueBySale(analysis);
   renderRecurringTargetFromRevenue(analysis.recurringTarget);
+  renderRevenueDistribution(analysis.revenueDistribution);
+  renderInvoiceAnalysis(analysis.invoiceAnalysis);
   renderRevenueDetailTable(analysis.detailRows);
   renderRevenueExceptionTable(analysis.exceptionRows);
+}
+
+function renderRevenueSubtabs() {
+  els.revenueSubtabButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.revenueSubtab === state.revenueSubtab);
+  });
+  els.revenueSubtabPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.revenuePanel === state.revenueSubtab);
+  });
+  renderRevenueTargetVisibility();
+  renderRevenueDistributionVisibility();
+  renderRevenueDetailVisibility();
+  renderTargetContributionVisibility();
+  renderRevenueDataChecksVisibility();
+}
+
+function renderCollapsiblePanel(panel, body, toggle, visible) {
+  panel?.classList.toggle("is-collapsed", !visible);
+  if (body) body.hidden = !visible;
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(visible));
+    const icon = toggle.querySelector(".panel-toggle-icon");
+    if (icon) icon.textContent = visible ? "-" : "+";
+  }
+}
+
+function renderRevenueDetailVisibility() {
+  renderCollapsiblePanel(els.revenueDetailPanel, els.revenueDetailBody, els.revenueDetailToggle, state.revenueDetailVisible);
+}
+
+function renderRevenueTargetVisibility() {
+  renderCollapsiblePanel(els.revenueTargetPanel, els.revenueTargetBody, els.revenueTargetToggle, state.revenueTargetVisible);
+}
+
+function renderRevenueDistributionVisibility() {
+  renderCollapsiblePanel(
+    els.revenueDistributionPanel,
+    els.revenueDistributionBody,
+    els.revenueDistributionToggle,
+    state.revenueDistributionVisible,
+  );
+}
+
+function renderTargetContributionVisibility() {
+  renderCollapsiblePanel(
+    els.targetContributionPanel,
+    els.targetContributionBody,
+    els.targetContributionToggle,
+    state.targetContributionVisible,
+  );
+}
+
+function renderRevenueDataChecksVisibility() {
+  renderCollapsiblePanel(
+    els.revenueDataChecksPanel,
+    els.revenueDataChecksBody,
+    els.revenueDataChecksToggle,
+    state.revenueDataChecksVisible,
+  );
+}
+
+function buildRevenuePerformance(analysis, scope) {
+  const recurringEntries = analysis.selectedEntries.filter((entry) => isRecurringBilling(entry.deal.billingType));
+  const targetRows = analysis.recurringTarget.rows || [];
+  const ownerMonthTargets = new Map();
+  const ownerRows = new Map();
+  const ownerKeyFor = (saleName, group) => `${saleName || "-"}|${group || "-"}`;
+
+  targetRows.forEach((row) => {
+    const ownerKey = ownerKeyFor(row.saleName, row.group);
+    if (!ownerRows.has(ownerKey)) {
+      ownerRows.set(ownerKey, {
+        saleName: row.saleName || "-",
+        group: row.group || "-",
+        actual: 0,
+        target: 0,
+        gap: 0,
+        deals: new Set(),
+      });
+    }
+    const owner = ownerRows.get(ownerKey);
+    scope.months.forEach((month) => {
+      const amount = row.monthly?.[month] || 0;
+      owner.target = roundMoney(owner.target + amount);
+      ownerMonthTargets.set(`${ownerKey}|${month}`, roundMoney((ownerMonthTargets.get(`${ownerKey}|${month}`) || 0) + amount));
+    });
+  });
+
+  recurringEntries.forEach((entry) => {
+    const deal = entry.deal;
+    const ownerKey = ownerKeyFor(deal.saleName, deal.group);
+    if (!ownerRows.has(ownerKey)) {
+      ownerRows.set(ownerKey, {
+        saleName: deal.saleName || "-",
+        group: deal.group || "-",
+        actual: 0,
+        target: 0,
+        gap: 0,
+        deals: new Set(),
+      });
+    }
+    const owner = ownerRows.get(ownerKey);
+    owner.actual = roundMoney(owner.actual + entry.amount);
+    owner.deals.add(dealDetailKey(deal));
+  });
+
+  const monthlyRows = scope.months.map((month) => {
+    const actual = sum(
+      recurringEntries.filter((entry) => entry.monthKey === month),
+      (entry) => entry.amount,
+    );
+    const target = analysis.recurringTarget.monthlyTotals[month] || 0;
+    const dealCount = new Set(recurringEntries.filter((entry) => entry.monthKey === month).map((entry) => dealDetailKey(entry.deal))).size;
+    return {
+      month,
+      actual: roundMoney(actual),
+      target,
+      gap: roundMoney(actual - target),
+      achievement: target ? actual / target : null,
+      dealCount,
+    };
+  });
+
+  const saleRows = Array.from(ownerRows.values())
+    .map((row) => ({
+      ...row,
+      gap: roundMoney(row.actual - row.target),
+      achievement: row.target ? row.actual / row.target : null,
+      dealCount: row.deals.size,
+    }))
+    .filter((row) => row.actual || row.target)
+    .sort((a, b) => b.actual - a.actual || b.target - a.target || a.saleName.localeCompare(b.saleName, "th", { numeric: true }));
+
+  const detailRows = recurringEntries
+    .map((entry) => {
+      const row = revenueEntryRow(entry);
+      const ownerKey = ownerKeyFor(row.saleName, row.group);
+      const monthTarget = ownerMonthTargets.get(`${ownerKey}|${entry.monthKey}`) || 0;
+      const monthlyRevenue = row.monthlyRevenue || 0;
+      return {
+        ...row,
+        performanceTarget: monthTarget,
+        performanceContribution: monthTarget ? monthlyRevenue / monthTarget : null,
+        performanceGap: roundMoney(monthlyRevenue - monthTarget),
+      };
+    })
+    .sort(sortRevenueRowsByTime);
+
+  const totalActual = roundMoney(sum(monthlyRows, (row) => row.actual));
+  const totalTarget = roundMoney(sum(monthlyRows, (row) => row.target));
+  return {
+    monthlyRows,
+    saleRows,
+    detailRows,
+    totalActual,
+    totalTarget,
+    totalGap: roundMoney(totalActual - totalTarget),
+    achievement: totalTarget ? totalActual / totalTarget : null,
+    dealCount: new Set(recurringEntries.map((entry) => dealDetailKey(entry.deal))).size,
+  };
+}
+
+function renderRevenuePerformance(performance, scope) {
+  renderRevenuePerformanceSummary(performance, scope);
+  renderRevenuePerformanceChart(performance);
+  renderRevenuePerformanceBySale(performance);
+  renderRevenuePerformanceDetail(performance);
+}
+
+function renderRevenuePerformanceSummary(performance, scope) {
+  if (!els.revenuePerformanceSummary) return;
+  const cards = [
+    ["Actual Recurring Revenue", compactMoney(performance.totalActual), `${monthLabel(scope.months[0] || "")} - ${monthLabel(scope.months[scope.months.length - 1] || "")}`],
+    ["Recurring Target", compactMoney(performance.totalTarget), "ฐานจาก Revenue ปีก่อนหน้า"],
+    ["Achievement", performance.achievement == null ? "-" : percent(performance.achievement), `Gap ${signedMoney(performance.totalGap)}`],
+    ["Active Deals", performance.dealCount.toLocaleString("th-TH"), "เฉพาะ Billing = Recurring"],
+  ];
+  els.revenuePerformanceSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card revenue-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderRevenuePerformanceChart(performance) {
+  if (!els.revenuePerformanceChart) return;
+  const rows = performance.monthlyRows.filter((row) => row.actual || row.target || performance.monthlyRows.length <= 12);
+  const maxAmount = Math.max(1, ...rows.flatMap((row) => [row.actual || 0, row.target || 0]));
+  els.revenuePerformanceChart.innerHTML = rows.length
+    ? `
+      <div class="chart-legend-inline renew revenue-performance-legend">
+        <span class="legend-target">Recurring Target</span>
+        <span class="legend-won" style="--legend-color:var(--renew)">Won / Actual</span>
+      </div>
+      ${rows
+        .map(
+          (row) => `
+            <div class="revenue-performance-row">
+              <div class="lead-week-name">${escapeHtml(monthLabel(row.month))}</div>
+              <div class="revperf-bar-space">
+                <div class="revperf-target-base" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%" title="Target ${money(row.target || 0)}"></div>
+                <div class="revperf-actual-bar" style="width:${row.actual ? Math.min(100, Math.max(2, ((row.actual || 0) / maxAmount) * 100)) : 0}%" title="Won ${money(row.actual || 0)}"></div>
+                <div class="revperf-target-outline" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%"></div>
+              </div>
+              <div class="lead-week-value">
+                <span class="muted">Target ${money(row.target || 0)}</span><br>
+                <span class="muted">Won ${money(row.actual || 0)}</span>
+                <span class="achievement-pill revenue-achievement-inline ${achievementClass(row.achievement)}">${row.achievement == null ? "-" : percent(row.achievement)}</span><br>
+                <span class="muted">Gap ${signedMoney(row.gap || 0)} · ${row.dealCount.toLocaleString("th-TH")} deals</span>
+              </div>
+            </div>
+          `,
+        )
+        .join("")}
+    `
+    : `<div class="empty">ไม่มี Recurring revenue ในช่วงเวลาที่เลือก</div>`;
+}
+
+function renderRevenuePerformanceBySale(performance) {
+  if (!els.revenuePerformanceBySale) return;
+  if (!performance.saleRows.length) {
+    els.revenuePerformanceBySale.innerHTML = `<div class="empty">ไม่มีข้อมูลราย Sale สำหรับช่วงเวลาที่เลือก</div>`;
+    return;
+  }
+  const maxAmount = Math.max(1, ...performance.saleRows.map((row) => row.actual));
+  els.revenuePerformanceBySale.innerHTML = `
+    ${performance.saleRows
+      .slice(0, 15)
+      .map(
+        (row) => `
+          <div class="rank-row revenue-performance-sale-row">
+            <div class="rank-name">
+              ${escapeHtml(row.saleName)}<br>
+              <span class="muted">${escapeHtml(row.group)}</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill revenue-fill" style="width:${Math.max(2, (row.actual / maxAmount) * 100)}%"></div>
+            </div>
+            <div class="rank-value">
+              ${money(row.actual)}<br>
+              <span class="muted">Target ${money(row.target)}</span><br>
+              <span class="${row.gap < 0 ? "negative" : "positive"}">${signedMoney(row.gap)}</span>
+            </div>
+          </div>
+        `,
+      )
+      .join("")}
+  `;
+}
+
+function renderRevenuePerformanceDetail(performance) {
+  if (!els.revenuePerformanceDetail) return;
+  const rows = performance.detailRows.slice(0, 500);
+  if (!rows.length) {
+    els.revenuePerformanceDetail.innerHTML = `<div class="empty">ไม่มีรายละเอียด Recurring revenue ในช่วงเวลาที่เลือก</div>`;
+    return;
+  }
+  els.revenuePerformanceDetail.innerHTML = `
+    <table class="revenue-performance-detail-table">
+      <thead>
+        <tr>
+          <th>Revenue Month</th>
+          <th>Sale</th>
+          <th>Company / Deal</th>
+          <th class="num">Monthly Revenue</th>
+          <th class="num">Monthly Target</th>
+          <th class="num">Contribution</th>
+          <th class="num">Gap</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (row) => `
+              <tr class="clickable-row" data-deal-key="${escapeHtml(row.dealKey)}">
+                <td><strong>${escapeHtml(row.monthLabel)}</strong><br><span class="muted">${escapeHtml(row.revenueDate)} | ${escapeHtml(row.monthPosition)}</span></td>
+                <td><strong>${escapeHtml(row.saleName)}</strong><br><span class="muted">${escapeHtml(row.group)}</span></td>
+                <td class="company-cell"><strong>${escapeHtml(row.company || "-")}</strong><br><span class="muted">${escapeHtml(row.dealName || "-")}</span></td>
+                <td>${escapeHtml(row.category)}</td>
+                <td class="num"><strong>${money(row.monthlyRevenue || 0)}</strong></td>
+                <td class="num">${money(row.performanceTarget || 0)}</td>
+                <td class="num">${row.performanceContribution == null ? "-" : percent(row.performanceContribution)}</td>
+                <td class="num ${row.performanceGap < 0 ? "negative" : "positive"}">${signedMoney(row.performanceGap || 0)}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
 }
 
 function renderRevenueSummary(analysis, scope) {
@@ -3727,29 +4492,32 @@ function renderRevenueMonthlyChart(analysis) {
   const maxAmount = Math.max(1, ...analysis.monthlyRows.flatMap((row) => [row.amount || 0, row.recurringAmount || 0, row.target || 0]));
   const rows = analysis.monthlyRows.filter((row) => row.amount || row.target || analysis.monthlyRows.length <= 12);
   els.revenueMonthlyChart.innerHTML = rows.length
-    ? rows
+    ? `
+      <div class="chart-legend-inline renew revenue-performance-legend">
+        <span class="legend-target">Recurring Target</span>
+        <span class="legend-won" style="--legend-color:var(--renew)">Actual Recurring</span>
+      </div>
+      ${rows
         .map(
           (row) => `
             <div class="revenue-month-row">
               <div class="lead-week-name">${escapeHtml(monthLabel(row.month))}</div>
-              <div class="revenue-bar-group">
-                <div class="bar-track" title="Recurring target ${money(row.target || 0)}">
-                  <div class="bar target" style="width:${row.target ? Math.max(2, (row.target / maxAmount) * 100) : 0}%"></div>
-                </div>
-                <div class="bar-track" title="Actual recurring ${money(row.recurringAmount || 0)}">
-                  <div class="bar actual" style="width:${row.recurringAmount ? Math.max(2, (row.recurringAmount / maxAmount) * 100) : 0}%"></div>
-                </div>
+              <div class="revperf-bar-space">
+                <div class="revperf-target-base" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%" title="Recurring Target ${money(row.target || 0)}"></div>
+                <div class="revperf-actual-bar" style="width:${row.recurringAmount ? Math.min(100, Math.max(2, ((row.recurringAmount || 0) / maxAmount) * 100)) : 0}%" title="Actual Recurring ${money(row.recurringAmount || 0)}"></div>
+                <div class="revperf-target-outline" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%"></div>
               </div>
               <div class="lead-week-value">
                 <span class="muted">Target ${money(row.target || 0)}</span><br>
                 <span class="muted">Actual ${money(row.recurringAmount || 0)}</span>
                 <span class="achievement-pill revenue-achievement-inline ${achievementClass(row.achievement)}">${row.achievement == null ? "-" : percent(row.achievement)}</span><br>
-                <span class="muted">Total Revenue ${money(row.amount || 0)} · ${row.deals.toLocaleString("th-TH")} deals</span>
+                <span class="muted">Gap ${signedMoney((row.recurringAmount || 0) - (row.target || 0))} · Total Revenue ${money(row.amount || 0)} · ${row.deals.toLocaleString("th-TH")} deals</span>
               </div>
             </div>
           `,
         )
-        .join("")
+        .join("")}
+    `
     : `<div class="empty">ไม่มี Revenue schedule ในช่วงเวลาที่เลือก</div>`;
 }
 
@@ -3803,16 +4571,94 @@ function renderRecurringTargetFromRevenue(target) {
       `,
     )
     .join("");
-  els.revenueTargetTable.innerHTML = recurringTargetTable(target);
+  els.revenueTargetTable.innerHTML = recurringTargetTable(target, {
+    expandedMap: state.revenueTargetExpanded,
+    toggleAttr: "data-revenue-target-toggle",
+    emptyMessage: `ไม่มี recurring revenue ปี ${target.sourceYear} สำหรับประเมิน Target ${target.targetYear}`,
+    formatContractRange: displayDateRangeDmy,
+  });
 }
 
-function recurringTargetTable(target) {
-  if (!target.rows.length) return `<div class="empty">ไม่มี recurring revenue ปี ${target.sourceYear} สำหรับประเมิน Target ${target.targetYear}</div>`;
+function renderRevenueDistribution(distribution) {
+  if (!els.revenueDistributionSummary || !els.revenueDistributionTable) return;
+  if (els.revenueDistributionTitle) els.revenueDistributionTitle.textContent = `${distribution.targetYear} Revenue Distribution`;
+  if (els.revenueDistributionDescription) {
+    els.revenueDistributionDescription.textContent = `กระจาย Revenue ปี ${distribution.targetYear} เป็นรายเดือนตามสัญญาของ Deals ที่อยู่ในขอบเขตการวิเคราะห์`;
+  }
+  const avgMonthly = distribution.months.length ? distribution.total / distribution.months.length : 0;
+  const activeMonths = distribution.months.filter((month) => distribution.monthlyTotals[month]).length;
+  const cards = [
+    [`${distribution.targetYear} Revenue`, compactMoney(distribution.total), "ยอด Revenue ที่กระจายตามเดือน"],
+    ["Revenue Deals", distribution.dealCount.toLocaleString("th-TH"), "Deals ที่มี revenue ในปีที่เลือก"],
+    ["Avg Revenue / Month", compactMoney(avgMonthly), `${activeMonths.toLocaleString("th-TH")} active months`],
+    ["Distribution Rows", distribution.rows.length.toLocaleString("th-TH"), "Sale + Type"],
+  ];
+  els.revenueDistributionSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card revenue-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+  els.revenueDistributionTable.innerHTML = recurringTargetTable(distribution, {
+    expandedMap: state.revenueDistributionExpanded,
+    toggleAttr: "data-revenue-distribution-toggle",
+    emptyMessage: `ไม่มี Revenue ปี ${distribution.targetYear} ในขอบเขตการวิเคราะห์`,
+    formatContractRange: displayDateRangeDmy,
+  });
+}
+
+function renderInvoiceAnalysis(invoiceAnalysis) {
+  if (!els.invoiceAnalysisSummary || !els.invoiceAnalysisTable) return;
+  const isServiceMode = state.invoiceDateMode === "service";
+  els.invoiceDateModeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.invoiceDateMode === state.invoiceDateMode);
+  });
+  if (els.invoiceAnalysisTitle) els.invoiceAnalysisTitle.textContent = `${invoiceAnalysis.targetYear} Invoice Analysis`;
+  if (els.invoiceAnalysisDescription) {
+    els.invoiceAnalysisDescription.textContent = isServiceMode
+      ? `กระจายยอด Invoice ปี ${invoiceAnalysis.targetYear} เป็นรายเดือนจาก Service Period โดยใช้ Amount ก่อน VAT และ fallback เป็น Posting Date เมื่อไม่มี Period`
+      : `กระจายยอด Invoice ปี ${invoiceAnalysis.targetYear} เป็นรายเดือนจาก Posting Date โดยใช้ Amount ก่อน VAT`;
+  }
+  const avgMonthly = invoiceAnalysis.months.length ? invoiceAnalysis.total / invoiceAnalysis.months.length : 0;
+  const activeMonths = invoiceAnalysis.months.filter((month) => invoiceAnalysis.monthlyTotals[month]).length;
+  const sourceFile = dashboardData.metadata?.sourceFiles?.invoice || "ยังไม่ได้ Upload Invoice CSV";
+  const cards = [
+    [`${invoiceAnalysis.targetYear} Invoice Amount`, compactMoney(invoiceAnalysis.total), isServiceMode ? "ฐานเดือน: Service Period" : "ฐานเดือน: Posting Date"],
+    ["Invoice Rows", invoiceAnalysis.dealCount.toLocaleString("th-TH"), sourceFile],
+    ["Avg Invoice / Month", compactMoney(avgMonthly), `${activeMonths.toLocaleString("th-TH")} active months`],
+    ["Distribution Rows", invoiceAnalysis.rows.length.toLocaleString("th-TH"), "Sale + Type"],
+  ];
+  els.invoiceAnalysisSummary.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <div class="lead-summary-card revenue-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <small>${escapeHtml(note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+  els.invoiceAnalysisTable.innerHTML = recurringTargetTable(invoiceAnalysis, {
+    expandedMap: state.invoiceAnalysisExpanded,
+    toggleAttr: "data-invoice-analysis-toggle",
+    emptyMessage: `ไม่มี Invoice ปี ${invoiceAnalysis.targetYear} ในขอบเขตการวิเคราะห์`,
+    formatContractRange: displayDateRangeDmy,
+  });
+}
+
+function recurringTargetTable(target, options = {}) {
+  if (!target.rows.length) return `<div class="empty">${escapeHtml(options.emptyMessage || `ไม่มี recurring revenue ปี ${target.sourceYear} สำหรับประเมิน Target ${target.targetYear}`)}</div>`;
   const monthHeaders = target.months.map((month) => `<th class="num">${escapeHtml(monthLabel(month).replace(` ${target.targetYear}`, ""))}</th>`).join("");
-  const columnCount = target.months.length + 5;
+  const columnCount = target.months.length + 6;
   const totalRow = `
     <tr class="total-row">
-      <td colspan="3"><strong>Total ${target.targetYear}</strong></td>
+      <td colspan="4"><strong>Total ${target.targetYear}</strong></td>
       ${target.months.map((month) => `<td class="num"><strong>${money(target.monthlyTotals[month] || 0)}</strong></td>`).join("")}
       <td class="num"><strong>${money(target.total)}</strong></td>
       <td class="num">${target.dealCount.toLocaleString("th-TH")}</td>
@@ -3823,6 +4669,7 @@ function recurringTargetTable(target) {
       <thead>
         <tr>
           <th>Sale</th>
+          <th>Customer/Project</th>
           <th>Sale Group</th>
           <th>Last Deal Type</th>
           ${monthHeaders}
@@ -3831,38 +4678,42 @@ function recurringTargetTable(target) {
         </tr>
       </thead>
       <tbody>
-        ${target.rows.map((row) => recurringTargetRow(row, target, columnCount)).join("")}
+        ${target.rows.map((row) => recurringTargetRow(row, target, columnCount, options)).join("")}
         ${totalRow}
       </tbody>
     </table>
   `;
 }
 
-function recurringTargetRow(row, target, columnCount) {
+function recurringTargetRow(row, target, columnCount, options = {}) {
   const rowKey = row.key || `${row.saleName}|${row.group}|${row.category}`;
-  const expanded = Boolean(state.revenueTargetExpanded[rowKey]);
+  const expandedMap = options.expandedMap || state.revenueTargetExpanded;
+  const toggleAttr = options.toggleAttr || "data-revenue-target-toggle";
+  const expanded = Boolean(expandedMap[rowKey]);
   const detailCount = (row.details || []).length;
   return `
     <tr class="${expanded ? "target-parent-row is-expanded" : "target-parent-row"}">
       <td>
-        <button type="button" class="target-sale-toggle" data-revenue-target-toggle="${escapeHtml(rowKey)}" aria-expanded="${expanded}">
+        <button type="button" class="target-sale-toggle" ${toggleAttr}="${escapeHtml(rowKey)}" aria-expanded="${expanded}">
           <span class="target-toggle-mark" aria-hidden="true">${expanded ? "-" : "+"}</span>
           <span class="target-toggle-name">${escapeHtml(row.saleName)}</span>
           <small>${detailCount.toLocaleString("th-TH")} deals</small>
         </button>
       </td>
+      <td class="muted"></td>
       <td>${escapeHtml(row.group)}</td>
       <td>${escapeHtml(row.category)}</td>
       ${target.months.map((month) => `<td class="num">${row.monthly[month] ? money(row.monthly[month]) : "-"}</td>`).join("")}
       <td class="num"><strong>${money(row.total)}</strong></td>
       <td class="num">${row.dealCount.toLocaleString("th-TH")}</td>
     </tr>
-    ${expanded ? recurringTargetDetailRow(row, target, columnCount) : ""}
+    ${expanded ? recurringTargetDetailRow(row, target, columnCount, options) : ""}
   `;
 }
 
-function recurringTargetDetailRow(row, target, columnCount) {
+function recurringTargetDetailRow(row, target, columnCount, options = {}) {
   const details = row.details || [];
+  const formatContractRange = options.formatContractRange || ((value) => value);
   if (!details.length) {
     return `
       <tr class="target-detail-row">
@@ -3876,11 +4727,12 @@ function recurringTargetDetailRow(row, target, columnCount) {
     .map(
       (detail) => `
         <tr class="target-detail-inline-row">
+          <td><strong>${escapeHtml(row.saleName)}</strong></td>
           <td class="target-detail-company">
             <strong>${escapeHtml(detail.company)}</strong>
             <span>${escapeHtml(detail.dealName)}</span>
           </td>
-          <td>${escapeHtml(detail.contractRange || "-")}</td>
+          <td>${escapeHtml(formatContractRange(detail.contractRange || "-"))}</td>
           <td>${escapeHtml(detail.billingType || "-")}</td>
           ${target.months.map((month) => `<td class="num">${detail.monthly?.[month] ? money(detail.monthly[month]) : "-"}</td>`).join("")}
           <td class="num"><strong>${money(detail.total || 0)}</strong></td>
@@ -3896,50 +4748,124 @@ function csvCell(value) {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+function csvDate(value) {
+  return displayDateDmy(value);
+}
+
+function csvDateRange(value) {
+  return displayDateRangeDmy(value);
+}
+
 function exportRevenueTargetCsv() {
   const target = buildRevenueAnalysis(calcScope()).recurringTarget;
-  const headers = ["Row Level", "Sale / Detail", "Sale Group / Contract", "Last Deal Type / Billing", ...target.months.map((month) => monthLabel(month)), "Total", "Deals"];
-  const rows = target.rows.flatMap((row) => {
-    const summaryRow = [
-      "Summary",
-      row.saleName,
-      row.group,
-      row.category,
-      ...target.months.map((month) => row.monthly[month] || 0),
-      row.total,
-      row.dealCount,
-    ];
-    const detailRows = (row.details || []).map((detail) => [
-      "Detail",
-      `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`,
-      detail.contractRange || "-",
-      detail.billingType || "-",
-      ...target.months.map((month) => detail.monthly?.[month] || 0),
-      detail.total || 0,
-      "",
-    ]);
-    return [summaryRow, ...detailRows];
+  exportRevenueBreakdownCsv(target, `${target.targetYear}-recurring-target-from-${target.sourceYear}-revenue.csv`, {
+    formatContractRange: csvDateRange,
   });
-  rows.push([
+}
+
+function exportRevenueDistributionCsv() {
+  const distribution = buildRevenueAnalysis(calcScope()).revenueDistribution;
+  exportRevenueBreakdownCsv(distribution, `${distribution.targetYear}-revenue-distribution.csv`, {
+    includePostingDate: true,
+    splitByMonthPostingDate: true,
+    formatContractRange: csvDateRange,
+  });
+}
+
+function exportInvoiceAnalysisCsv() {
+  const invoiceAnalysis = buildRevenueAnalysis(calcScope()).invoiceAnalysis;
+  exportRevenueBreakdownCsv(invoiceAnalysis, `${invoiceAnalysis.targetYear}-invoice-analysis-${state.invoiceDateMode}.csv`, {
+    includePostingDate: true,
+    formatContractRange: csvDateRange,
+  });
+}
+
+function exportRevenueBreakdownCsv(target, fileName, options = {}) {
+  const formatContractRange = options.formatContractRange || ((value) => value);
+  const headers = [
+    "Sale",
+    "Customer/Project",
+    ...(options.includePostingDate ? ["Posting Date"] : []),
+    "Sale Group / Contract",
+    "Last Deal Type / Billing",
+    ...target.months.map((month) => monthLabel(month)),
     "Total",
-    `Total ${target.targetYear}`,
-    "",
-    "",
-    ...target.months.map((month) => target.monthlyTotals[month] || 0),
-    target.total,
-    target.dealCount,
-  ]);
+  ];
+  const exportRows = target.rows.flatMap((row) =>
+    (row.details || []).flatMap((detail) => {
+      const detailName = `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`;
+      const baseColumns = [row.saleName, detailName];
+      if (options.splitByMonthPostingDate) {
+        return target.months
+          .filter((month) => detail.monthly?.[month])
+          .map((month) => {
+            const amount = detail.monthly?.[month] || 0;
+            const postingDate = detail.postingDatesByMonth?.[month] || `${month}-01`;
+            return {
+              customerProject: detailName,
+              postingDate,
+              amount,
+              row: [
+                ...baseColumns,
+                csvDate(postingDate),
+                formatContractRange(detail.contractRange || "-"),
+                detail.billingType || "-",
+                ...target.months.map((targetMonth) => (targetMonth === month ? amount : 0)),
+                amount,
+              ],
+            };
+          });
+      }
+      const postingDate = detail.postingDate || parseDateValue(detail.contractRange)?.date || "";
+      const amount = detail.total || 0;
+      return [
+        {
+          customerProject: detailName,
+          postingDate,
+          amount,
+          row: [
+            ...baseColumns,
+            ...(options.includePostingDate ? [csvDate(postingDate)] : []),
+            formatContractRange(detail.contractRange || "-"),
+            detail.billingType || "-",
+            ...target.months.map((month) => detail.monthly?.[month] || 0),
+            amount,
+          ],
+        },
+      ];
+    }),
+  );
+  const rows = exportRows
+    .sort(exportCustomerPostingAmountSort)
+    .map((item) => item.row);
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-  downloadTextFile(`${target.targetYear}-recurring-target-from-${target.sourceYear}-revenue.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+  downloadTextFile(fileName, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+}
+
+function exportCustomerPostingAmountSort(a, b) {
+  const customer = String(a.customerProject || "").localeCompare(String(b.customerProject || ""), "th", { numeric: true });
+  if (customer) return customer;
+  const date = (parseDateValue(a.postingDate)?.ts || 0) - (parseDateValue(b.postingDate)?.ts || 0);
+  if (date) return date;
+  return (Number(a.amount) || 0) - (Number(b.amount) || 0);
 }
 
 function exportRevenueDetailCsv() {
-  const rows = filteredRevenueDetailRows(buildRevenueAnalysis(calcScope()).detailRows);
+  const rows = filteredRevenueDetailRows(buildRevenueAnalysis(calcScope()).detailRows).sort((a, b) => {
+    const customerA = `${a.company || ""} ${a.dealName || ""}`;
+    const customerB = `${b.company || ""} ${b.dealName || ""}`;
+    const customer = customerA.localeCompare(customerB, "th", { numeric: true });
+    if (customer) return customer;
+    const date = (parseDateValue(a.revenueDate)?.ts || 0) - (parseDateValue(b.revenueDate)?.ts || 0);
+    if (date) return date;
+    return (Number(a.monthlyRevenue) || 0) - (Number(b.monthlyRevenue) || 0);
+  });
   const headers = [
     "Deal ID",
     "Revenue Month",
     "Revenue Date",
-    "Month Position",
+    "ยอดเดือน",
+    "ระยะสัญญา",
     "Sale",
     "Sale Group",
     "Company",
@@ -3953,26 +4879,35 @@ function exportRevenueDetailCsv() {
     "Rule",
     "Checks",
   ];
-  const body = rows.map((row) => [
-    row.id || "",
-    row.monthLabel || "",
-    row.revenueDate || "",
-    row.monthPosition || "",
-    row.saleName || "",
-    row.group || "",
-    row.company || "",
-    row.dealName || "",
-    row.category || "",
-    row.billingType || "",
-    row.contractRange || "",
-    row.expectedDate || "",
-    row.monthlyRevenue || 0,
-    row.contractAmount || 0,
-    row.revenueRule || "",
-    row.flagsLabel || "",
-  ]);
+  const body = rows.map((row) => {
+    const [revenueMonthNo, contractMonths] = splitMonthPosition(row.monthPosition);
+    return [
+      row.id || "",
+      row.monthLabel || "",
+      csvDate(row.revenueDate),
+      revenueMonthNo,
+      contractMonths,
+      row.saleName || "",
+      row.group || "",
+      row.company || "",
+      row.dealName || "",
+      row.category || "",
+      row.billingType || "",
+      csvDateRange(row.contractRange),
+      csvDate(row.expectedDate),
+      row.monthlyRevenue || 0,
+      row.contractAmount || 0,
+      row.revenueRule || "",
+      row.flagsLabel || "",
+    ];
+  });
   const csv = [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\r\n");
   downloadTextFile(`revenue-detail-filtered.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+}
+
+function splitMonthPosition(value) {
+  const match = String(value || "").match(/^(\d+)\s*\/\s*(\d+)$/);
+  return match ? [match[1], match[2]] : ["", ""];
 }
 
 function downloadTextFile(fileName, content, mimeType) {
@@ -4094,12 +5029,12 @@ function revenueDetailTable(rows) {
                 .map(
                   (row) => `
                     <tr class="clickable-row" data-deal-key="${escapeHtml(row.dealKey)}">
-                      <td><strong>${escapeHtml(row.monthLabel)}</strong><br><span class="muted">${escapeHtml(row.revenueDate)} | ${escapeHtml(row.monthPosition)}</span></td>
+                      <td><strong>${escapeHtml(row.monthLabel)}</strong><br><span class="muted">${escapeHtml(displayDateDmy(row.revenueDate))} | ${escapeHtml(row.monthPosition)}</span></td>
                       <td><strong>${escapeHtml(row.saleName)}</strong><br><span class="muted">${escapeHtml(row.group || "-")}</span></td>
                       <td class="company-cell"><strong>${escapeHtml(row.company || "-")}</strong><br><span class="muted">${escapeHtml(row.dealName || "-")}</span></td>
                       <td>${escapeHtml(row.category)}</td>
                       <td>${escapeHtml(row.billingType)}</td>
-                      <td>${escapeHtml(row.contractRange)}</td>
+                      <td>${escapeHtml(displayDateRangeDmy(row.contractRange))}</td>
                       <td class="num"><strong>${money(row.monthlyRevenue)}</strong></td>
                       <td class="num">${money(row.contractAmount)}</td>
                       <td>${escapeHtml(row.revenueRule)}</td>

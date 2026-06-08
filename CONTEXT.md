@@ -72,6 +72,18 @@ _Avoid_: Sales performance, pipeline forecast
 The monthly line-item view behind the Revenue Schedule. It is intended for reconciliation and review by finance, accounting, and management.
 _Avoid_: Transaction Detail, All Deals
 
+**Revenue Performance**:
+The management view that compares actual recurring revenue recognized from Won or Pre-Won deals against the Recurring Target for the selected period. It measures revenue achievement, not sales booking achievement.
+_Avoid_: Sales Performance, Revenue Detail
+
+**Revenue Gap**:
+The difference between actual recurring revenue and Recurring Target for the selected period. A positive gap means actual recurring revenue is above target; a negative gap means it is below target.
+_Avoid_: Forecast gap, pipeline gap
+
+**Target Contribution Detail**:
+The recurring-revenue detail view used to explain which deals contribute to Revenue Performance against the Recurring Target. It is a performance attribution view, not an accounting reconciliation view.
+_Avoid_: Revenue Detail, Recurring Target Detail
+
 **Recurring**:
 A billing pattern where contract value is recognized across multiple service months. It describes revenue recognition behavior, not sale type.
 _Avoid_: Renew

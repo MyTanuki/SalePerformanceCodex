@@ -1,0 +1,2190 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "44859a0166300996c08e31b2593b289f76ad5235",
+  "generatedAt": "2026-05-30T12:08:12.009Z",
+  "files": {
+    "app.js": {
+      "filePath": "app.js",
+      "contentHash": "03d6ed01d0f471043fef0b2a584180869647709f9d8b64534412a4f31eae3d39",
+      "functions": [
+        {
+          "name": "createEmptyDashboardData",
+          "params": [],
+          "exported": false,
+          "lineCount": 43
+        },
+        {
+          "name": "emptyQuality",
+          "params": [],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "currentTargetSales",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "escapeHtml",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "loadStoredDashboardData",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "storeDashboardData",
+          "params": [
+            "data"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "hasDealData",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "clone",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "cleanText",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeName",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "makeKey",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "parseMoneyValue",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "parsePositiveInt",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "roundMoney",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "parseCsv",
+          "params": [
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "parseCsvRows",
+          "params": [
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "createDefaultMappings",
+          "params": [],
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "activeMappings",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hydrateMappings",
+          "params": [
+            "mappingData"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "serializeMappings",
+          "params": [
+            "mappings"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "mappingCounts",
+          "params": [
+            "mappings"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "mergeMappings",
+          "params": [
+            "baseMappings",
+            "updateMappings"
+          ],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "parseMappingCsv",
+          "params": [
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 74
+        },
+        {
+          "name": "validateMappings",
+          "params": [
+            "mappings"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "isMappingSelected",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "normalizeSaleType",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "pipelineRuleKey",
+          "params": [
+            "group",
+            "saleType"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "pipelineCountingResult",
+          "params": [
+            "group",
+            "category",
+            "pipeline"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "parseDateValue",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "makeDateParts",
+          "params": [
+            "isoDate"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "localIsoDate",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "currentYearKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "currentMonthKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "currentYearStartMonthKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "currentQuarterKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "normalizeSearch",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "compactMoney",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "money",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "signedMoney",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "percent",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "sum",
+          "params": [
+            "items",
+            "selector"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "monthLabel",
+          "params": [
+            "month"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "addMonths",
+          "params": [
+            "monthKey",
+            "offset"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "monthDiffInclusive",
+          "params": [
+            "startMonth",
+            "endMonth"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "monthRange",
+          "params": [
+            "startMonth",
+            "monthsCount"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "monthEndDate",
+          "params": [
+            "monthKey"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "displayDate",
+          "params": [
+            "dateText"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "periodMonths",
+          "params": [],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "isIsoWeekKey",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "weekLabel",
+          "params": [
+            "weekKey"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "isoWeekRange",
+          "params": [
+            "weekKey"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "dateToIso",
+          "params": [
+            "date"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isoWeekKeyFromDate",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "previousIsoWeekKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "weeksInIsoYear",
+          "params": [
+            "year"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "dealTrackingDate",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "dealPeriodKey",
+          "params": [
+            "deal",
+            "periodKey"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "dealPeriodLabel",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "categoryMatches",
+          "params": [
+            "category"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "visibleSales",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "salesForOptions",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "selectedSaleRecord",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "itemMatchesSaleRecord",
+          "params": [
+            "item",
+            "sale"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "itemMatchesSaleScope",
+          "params": [
+            "item",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "dealSearchText",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "dealMatchesGlobalSearch",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "dealMatchesPeriod",
+          "params": [
+            "deal",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "filteredDeals",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "targetForSale",
+          "params": [
+            "sale",
+            "months"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "targetForSaleWeek",
+          "params": [
+            "sale",
+            "weekKey"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "calcScope",
+          "params": [],
+          "exported": false,
+          "lineCount": 52
+        },
+        {
+          "name": "riskTotals",
+          "params": [
+            "deals"
+          ],
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "initFilters",
+          "params": [],
+          "exported": false,
+          "lineCount": 301
+        },
+        {
+          "name": "renderPeriodOptions",
+          "params": [],
+          "exported": false,
+          "lineCount": 66
+        },
+        {
+          "name": "leadWeekOptions",
+          "params": [],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "setupSelectControls",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "setupWeekSelectControl",
+          "params": [
+            "select"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "syncSelectControls",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "syncSelectControl",
+          "params": [
+            "select"
+          ],
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "toggleWeekSelect",
+          "params": [
+            "select",
+            "open"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "closeWeekSelects",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "ordinalQuarter",
+          "params": [
+            "quarter"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderFilterVisibility",
+          "params": [],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "openSettings",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "closeSettings",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "openFieldInfo",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "closeFieldInfo",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "closeDealModal",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "fieldCheckRows",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "hasFieldValue",
+          "params": [
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "hasPositiveFieldValue",
+          "params": [
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hasAnyDealWithStatus",
+          "params": [
+            "status"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hasTargetData",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "hasMappingData",
+          "params": [
+            "kind"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hasAnyPipelineRule",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "fieldRequirementGroups",
+          "params": [],
+          "exported": false,
+          "lineCount": 106
+        },
+        {
+          "name": "renderFieldInfoSummary",
+          "params": [],
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "hasMissingFieldRequirements",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "setUploadStatus",
+          "params": [
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "setAutoLoadedFileName",
+          "params": [
+            "kind",
+            "fileName"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "pipelineMatchingGroups",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "pipelineMatchingPipelines",
+          "params": [],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "renderPipelineMatchingSettings",
+          "params": [],
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "collectPipelineMatchingRules",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "applyPipelineMatchingRules",
+          "params": [
+            "pipelineRuleMap",
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "savePipelineMatching",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "clearPipelineMatching",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "autoLoadDefaultSetupFiles",
+          "params": [],
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "renderGroupOptions",
+          "params": [],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "renderSaleOptions",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderMeta",
+          "params": [],
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "setTheme",
+          "params": [
+            "theme"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "initTheme",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "handleCsvRefresh",
+          "params": [],
+          "exported": false,
+          "lineCount": 75
+        },
+        {
+          "name": "validateDealRows",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "validateTargetRows",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "buildTargetSalesFromRows",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 51
+        },
+        {
+          "name": "mergeTargetSalesIntoDashboard",
+          "params": [
+            "data",
+            "targetSales",
+            "fileName"
+          ],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "remapDashboardDataWithMappings",
+          "params": [
+            "data",
+            "mappings"
+          ],
+          "exported": false,
+          "lineCount": 141
+        },
+        {
+          "name": "buildDashboardDataFromDeals",
+          "params": [
+            "dealRows",
+            "fileName"
+          ],
+          "exported": false,
+          "lineCount": 259
+        },
+        {
+          "name": "addQuality",
+          "params": [
+            "bucket",
+            "amount"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "addFact",
+          "params": [
+            "factsMap",
+            "fact"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "normalizeDealStage",
+          "params": [
+            "stage"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "inferDealCategory",
+          "params": [
+            "row"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "mappedStage",
+          "params": [
+            "stage"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "mappedDealType",
+          "params": [
+            "dealType"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "dealCategory",
+          "params": [
+            "dealType",
+            "row"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "stageWeightFor",
+          "params": [
+            "rawStage",
+            "displayStage"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "renderKpis",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "kpiSummaryRow",
+          "params": [
+            "label",
+            "category",
+            "sales",
+            "months",
+            "actualFacts"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "periodLabel",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "metricForMonth",
+          "params": [
+            "month",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "renderMonthlyChart",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "barLine",
+          "params": [
+            "className",
+            "value",
+            "maxValue"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "renderTeamChart",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "renderCategoryMix",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "renderStatusMix",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "riskScore",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "dealMatchesSearch",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderTopDealsTable",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "renderRiskSummary",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "renderRiskByStage",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "renderRiskDealsTable",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "allDealDetails",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "performanceBucket",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "filteredPerformanceDeals",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildPerformanceRows",
+          "params": [
+            "scope",
+            "category"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "renderSalesPerformanceCharts",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "salesAmountVariant",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "salesAmountStatusColor",
+          "params": [
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "legendStatusItem",
+          "params": [
+            "key",
+            "variant"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderStackedPerformanceChart",
+          "params": [
+            "container",
+            "rows",
+            "variant"
+          ],
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "statusLabel",
+          "params": [
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderCumulativePerformanceChart",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 85
+        },
+        {
+          "name": "renderTransactionTable",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "dealMatchesAndNotTerms",
+          "params": [
+            "deal",
+            "andTerms",
+            "notTerms"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "applyColumnFilters",
+          "params": [
+            "tableKey",
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "columnFilterValue",
+          "params": [
+            "deal",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "countingStatusLabel",
+          "params": [
+            "status"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "riskFilterLabel",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "columnFilterButton",
+          "params": [
+            "tableKey",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "columnFilterOptions",
+          "params": [
+            "tableKey",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "openColumnFilter",
+          "params": [
+            "tableKey",
+            "key",
+            "anchor"
+          ],
+          "exported": false,
+          "lineCount": 69
+        },
+        {
+          "name": "ensureColumnFilterPopover",
+          "params": [],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "closeColumnFilter",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "resetColumnFilters",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "transactionSearchText",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "transactionSearchTokens",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "countingSearchValues",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "transactionTermMatches",
+          "params": [
+            "term",
+            "text",
+            "tokens"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "sortTransactionRows",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "transactionTable",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 38
+        },
+        {
+          "name": "transactionHeader",
+          "params": [
+            "key",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "renderDealDetailTable",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "sortDealDetailRows",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "dealDetailTable",
+          "params": [
+            "rows",
+            "emptyText"
+          ],
+          "exported": false,
+          "lineCount": 50
+        },
+        {
+          "name": "dealDetailHeader",
+          "params": [
+            "key",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "revenueDateParts",
+          "params": [
+            "...values"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "revenuePeriodMonths",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isOneTimeBilling",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isRecurringBilling",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "allocateRevenueAmount",
+          "params": [
+            "amount",
+            "monthsCount"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "revenueScheduleForDeal",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "targetYearMonths",
+          "params": [
+            "year"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildRecurringTargetFromRevenue",
+          "params": [
+            "schedules",
+            "targetYear"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildRevenueAnalysis",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 70
+        },
+        {
+          "name": "revenueTargetYearFromScope",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "revenueEntryRow",
+          "params": [
+            "entry"
+          ],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "sortRevenueRowsByTime",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "revenueExceptionRow",
+          "params": [
+            "schedule"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "renderRevenueAnalysis",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "renderRevenueSubtabs",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "renderCollapsiblePanel",
+          "params": [
+            "panel",
+            "body",
+            "toggle",
+            "visible"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderRevenueDetailVisibility",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderRevenueTargetVisibility",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderTargetContributionVisibility",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "renderRevenueDataChecksVisibility",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "buildRevenuePerformance",
+          "params": [
+            "analysis",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 100
+        },
+        {
+          "name": "renderRevenuePerformance",
+          "params": [
+            "performance",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "renderRevenuePerformanceSummary",
+          "params": [
+            "performance",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "renderRevenuePerformanceChart",
+          "params": [
+            "performance"
+          ],
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "renderRevenuePerformanceBySale",
+          "params": [
+            "performance"
+          ],
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "renderRevenuePerformanceDetail",
+          "params": [
+            "performance"
+          ],
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "renderRevenueSummary",
+          "params": [
+            "analysis",
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "renderRevenueMonthlyChart",
+          "params": [
+            "analysis"
+          ],
+          "exported": false,
+          "lineCount": 32
+        },
+        {
+          "name": "achievementClass",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "renderRevenueBySale",
+          "params": [
+            "analysis"
+          ],
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "renderRecurringTargetFromRevenue",
+          "params": [
+            "target"
+          ],
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "recurringTargetTable",
+          "params": [
+            "target"
+          ],
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "recurringTargetRow",
+          "params": [
+            "row",
+            "target",
+            "columnCount"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "recurringTargetDetailRow",
+          "params": [
+            "row",
+            "target",
+            "columnCount"
+          ],
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "csvCell",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "exportRevenueTargetCsv",
+          "params": [],
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "exportRevenueDetailCsv",
+          "params": [],
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "downloadTextFile",
+          "params": [
+            "fileName",
+            "content",
+            "mimeType"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "renderRevenueDetailTable",
+          "params": [
+            "detailRows"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "filteredRevenueDetailRows",
+          "params": [
+            "detailRows"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "revenueRowMatchesAndNotTerms",
+          "params": [
+            "row",
+            "andTerms",
+            "notTerms"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "revenueSearchText",
+          "params": [
+            "row"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "revenueSearchTokens",
+          "params": [
+            "row"
+          ],
+          "exported": false,
+          "lineCount": 37
+        },
+        {
+          "name": "revenueDetailTable",
+          "params": [
+            "rows"
+          ],
+          "exported": false,
+          "lineCount": 56
+        },
+        {
+          "name": "revenueHeader",
+          "params": [
+            "key",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "revenueCheckBadge",
+          "params": [
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "renderRevenueExceptionTable",
+          "params": [
+            "exceptionRows"
+          ],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "leadCreatedWeek",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "leadCreatedTs",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "sortLeadByCreatedDate",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "filteredLeadDeals",
+          "params": [],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "renderNewLead",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "renderNewLeadSummary",
+          "params": [
+            "deals"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "renderNewLeadWeeklyChart",
+          "params": [
+            "deals"
+          ],
+          "exported": false,
+          "lineCount": 35
+        },
+        {
+          "name": "renderNewLeadTable",
+          "params": [
+            "deals"
+          ],
+          "exported": false,
+          "lineCount": 58
+        },
+        {
+          "name": "leadHeader",
+          "params": [
+            "key",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "dealDetailKey",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "openDealModal",
+          "params": [
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "dealModalHtml",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 62
+        },
+        {
+          "name": "dealInsightCard",
+          "params": [
+            "label",
+            "value",
+            "note"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "detailLine",
+          "params": [
+            "label",
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "dealRecommendations",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "statusBadge",
+          "params": [
+            "status"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "stageBucketBadge",
+          "params": [
+            "bucket"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "countingBadge",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "progressBadge",
+          "params": [
+            "status"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "dealTable",
+          "params": [
+            "rows",
+            "emptyText"
+          ],
+          "exported": false,
+          "lineCount": 39
+        },
+        {
+          "name": "riskBadges",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderDataQuality",
+          "params": [],
+          "exported": false,
+          "lineCount": 65
+        },
+        {
+          "name": "renderOverviewView",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "renderSalesPerformanceView",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "renderPipelineRiskView",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "renderActiveTabView",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderAllDashboardViews",
+          "params": [
+            "scope"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderFilteredView",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "renderTabDescription",
+          "params": [],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "renderCategoryButtons",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "render",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5019,
+      "hasStructuralAnalysis": true
+    },
+    "data/dashboard-data.js": {
+      "filePath": "data/dashboard-data.js",
+      "contentHash": "43692b17d39f3400b38519143b0964d82a9d7caec7ecd1a19c690a202d448f36",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": true
+    },
+    "index.html": {
+      "filePath": "index.html",
+      "contentHash": "3df86bb001123601a4ee6ca3cf5289ffcaae44c6f45e0649c2713f9cf44227d5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 676,
+      "hasStructuralAnalysis": false
+    },
+    "styles.css": {
+      "filePath": "styles.css",
+      "contentHash": "c246d730854a6599a2375a4977786a6e775c16bdbca9261f3f613c54cd7387af",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2900,
+      "hasStructuralAnalysis": false
+    },
+    "scripts/revenue-logic.js": {
+      "filePath": "scripts/revenue-logic.js",
+      "contentHash": "c06ebf2f39dbfd2ef4ece6cf4171f9aa66d3e560cdbe0d210a97e6dfaafff3bf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 306,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/preview-server.js": {
+      "filePath": "scripts/preview-server.js",
+      "contentHash": "811d11f7e5cefcf7b33631972cb9b7066697b4689e2fbab4bfc79b0ea61db062",
+      "functions": [
+        {
+          "name": "send",
+          "params": [
+            "res",
+            "status",
+            "body"
+          ],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/test-revenue-logic.js": {
+      "filePath": "scripts/test-revenue-logic.js",
+      "contentHash": "0d55ffce8e29074e9c53922f910dfa6797dabbfaf45050ad45c8f7227b665603",
+      "functions": [
+        {
+          "name": "cleanText",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeName",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseMoneyValue",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parsePositiveInt",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "roundMoney",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "parseDateValue",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 30
+        },
+        {
+          "name": "addMonths",
+          "params": [
+            "monthKey",
+            "offset"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "monthDiffInclusive",
+          "params": [
+            "startMonth",
+            "endMonth"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "monthRange",
+          "params": [
+            "startMonth",
+            "monthsCount"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "monthEndDate",
+          "params": [
+            "monthKey"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "money",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "sum",
+          "params": [
+            "items",
+            "selector"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "dealDetailKey",
+          "params": [
+            "deal"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "deal",
+          "params": [],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "amounts",
+          "params": [
+            "entries"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 287,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

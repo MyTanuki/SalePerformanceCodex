@@ -34,7 +34,7 @@
         <section class="settings-modal" role="dialog" aria-modal="true" aria-label="ตั้งค่า Dashboard">
           <div class="modal-head">
             <div>
-              <p>เลือกไฟล์ Sale Target, Deal และ Mapping เพื่อ refresh dashboard รอบใหม่</p>
+              <p>เลือกไฟล์ Sale Target, Deal, Mapping และ Invoice เพื่อ refresh dashboard รอบใหม่</p>
             </div>
             <button type="button" class="icon-button" id="closeSettings" aria-label="Close settings">
               <span aria-hidden="true">&times;</span>
@@ -51,6 +51,10 @@
           <label class="upload-box" for="dealCsvInput">
             <span>Deal CSV File</span>
             <input id="dealCsvInput" type="file" accept=".csv,text/csv" />
+          </label>
+          <label class="upload-box" for="invoiceCsvInput">
+            <span>Invoice CSV File</span>
+            <input id="invoiceCsvInput" type="file" accept=".csv,text/csv" />
           </label>
           <div class="upload-actions">
             <button type="button" class="primary-button highlight-button" id="applyCsvFiles">Refresh Dashboard</button>
@@ -222,7 +226,7 @@
                 <h2>Target vs Actual by Month</h2>
                 <p>Actual = Deal won + Pre-WON ตามเดือนที่เปลี่ยน stage</p>
               </div>
-              <span class="legend"><i class="target"></i>Target <i class="actual"></i>Actual <i class="forecast"></i>Forecast</span>
+              <span class="legend"><i class="target"></i>Target <i class="actual"></i>Actual</span>
             </div>
             <div id="monthlyChart" class="month-chart"></div>
           </article>
@@ -378,79 +382,199 @@
           <div id="revenueSummary" class="lead-summary-grid revenue-summary-grid"></div>
         </article>
 
-        <div class="grid two-col revenue-grid">
+        <div class="subtab-bar revenue-subtab-bar" aria-label="Revenue analysis sections">
+          <button type="button" class="active" data-revenue-subtab="performance">Revenue Performance</button>
+          <button type="button" data-revenue-subtab="analysis">Revenue Analysis</button>
+          <button type="button" data-revenue-subtab="invoice">Invoice Analysis</button>
+        </div>
+
+        <div class="revenue-subtab-panel active" data-revenue-panel="performance">
           <article class="panel">
             <div class="panel-head">
               <div>
-                <h2>Monthly Revenue Schedule</h2>
-                <p>ยอดรายได้ที่ควรรับรู้ในแต่ละเดือนตามช่วงเวลาที่เลือก</p>
+                <h2>Revenue Performance</h2>
+                <p>วัดผลยอด Won ที่ถูกเกลี่ยรายเดือนตามสัญญา เทียบกับ Recurring Target ในช่วงเวลาที่เลือก</p>
               </div>
             </div>
-            <div id="revenueMonthlyChart" class="revenue-month-chart"></div>
+            <div id="revenuePerformanceSummary" class="lead-summary-grid revenue-summary-grid"></div>
           </article>
 
-          <article class="panel">
+          <div class="grid two-col revenue-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Monthly Performance Chart</h2>
+                  <p>Target เป็นกรอบสีเขียวโปร่งใส และ Won เป็นแท่งสีเขียวทึบตามมาตรฐาน Renew</p>
+                </div>
+              </div>
+              <div id="revenuePerformanceChart" class="revenue-performance-chart"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Performance by Sale Owner</h2>
+                  <p>เปรียบเทียบ Actual Recurring Revenue กับ Target รายพนักงาน</p>
+                </div>
+              </div>
+              <div id="revenuePerformanceBySale" class="rank-list"></div>
+            </article>
+          </div>
+
+        </div>
+
+        <div class="revenue-subtab-panel" data-revenue-panel="analysis">
+          <div class="grid two-col revenue-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Monthly Revenue Schedule</h2>
+                  <p>ยอดรายได้ที่ควรรับรู้ในแต่ละเดือนตามช่วงเวลาที่เลือก</p>
+                </div>
+              </div>
+              <div id="revenueMonthlyChart" class="revenue-month-chart"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Revenue by Sale Owner</h2>
+                  <p>ช่วยให้ผู้บริหารเห็น contribution ของแต่ละ Sale ต่อกระแสรายได้</p>
+                </div>
+              </div>
+              <div id="revenueBySale" class="rank-list"></div>
+            </article>
+          </div>
+
+          <article class="panel collapsible-panel is-collapsed" id="revenueTargetPanel">
             <div class="panel-head">
               <div>
-                <h2>Revenue by Sale Owner</h2>
-                <p>ช่วยให้ผู้บริหารเห็น contribution ของแต่ละ Sale ต่อกระแสรายได้</p>
+                <h2>
+                  <button type="button" class="panel-title-toggle" id="revenueTargetToggle" aria-expanded="false" aria-controls="revenueTargetBody">
+                    <span class="panel-toggle-icon" aria-hidden="true">+</span>
+                    <span id="revenueTargetTitle">Recurring Target from Revenue</span>
+                  </button>
+                </h2>
+                <p id="revenueTargetDescription">ประเมิน Target จากกระแสรายได้ปีก่อนหน้า เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป</p>
+              </div>
+              <button type="button" class="primary-button export-button" id="exportRevenueTargetCsv">Export CSV</button>
+            </div>
+            <div class="collapsible-body" id="revenueTargetBody" hidden>
+              <div id="revenueTargetSummary" class="lead-summary-grid revenue-target-summary"></div>
+              <div id="revenueTargetTable" class="table-wrap"></div>
+            </div>
+          </article>
+
+          <article class="panel collapsible-panel is-collapsed" id="revenueDistributionPanel">
+            <div class="panel-head">
+              <div>
+                <h2>
+                  <button type="button" class="panel-title-toggle" id="revenueDistributionToggle" aria-expanded="false" aria-controls="revenueDistributionBody">
+                    <span class="panel-toggle-icon" aria-hidden="true">+</span>
+                    <span id="revenueDistributionTitle">Revenue Distribution</span>
+                  </button>
+                </h2>
+                <p id="revenueDistributionDescription">กระจาย Revenue ของปีที่เลือกเป็นรายเดือน ตามสัญญาของ Deals ที่อยู่ในขอบเขตการวิเคราะห์</p>
+              </div>
+              <button type="button" class="primary-button export-button" id="exportRevenueDistributionCsv">Export CSV</button>
+            </div>
+            <div class="collapsible-body" id="revenueDistributionBody" hidden>
+              <div id="revenueDistributionSummary" class="lead-summary-grid revenue-target-summary"></div>
+              <div id="revenueDistributionTable" class="table-wrap"></div>
+            </div>
+          </article>
+
+          <article class="panel collapsible-panel is-collapsed" id="revenueDetailPanel">
+            <div class="panel-head">
+              <div>
+                <h2>
+                  <button type="button" class="panel-title-toggle" id="revenueDetailToggle" aria-expanded="false" aria-controls="revenueDetailBody">
+                    <span class="panel-toggle-icon" aria-hidden="true">+</span>
+                    Revenue Detail
+                  </button>
+                </h2>
+                <p>รายการรายเดือนพร้อมข้อมูลสัญญา สำหรับ reconcile กับฝ่ายบัญชีและการเงิน (ฟังก์ชันค้นหาไม่รวม Contract)</p>
+              </div>
+              <div class="revenue-detail-actions">
+                <span class="revenue-total-badge">Monthly Revenue <strong id="revenueDetailMonthlyTotal">฿0</strong></span>
+                <button type="button" class="primary-button export-button" id="exportRevenueDetailCsv">Export CSV</button>
               </div>
             </div>
-            <div id="revenueBySale" class="rank-list"></div>
+            <div class="collapsible-body" id="revenueDetailBody" hidden>
+              <div class="transaction-search-grid">
+                <div class="transaction-search-block">
+                  <strong>ค้นหา AND</strong>
+                  <input type="search" data-revenue-and placeholder="คำค้นหาที่ 1" />
+                  <input type="search" data-revenue-and placeholder="คำค้นหาที่ 2" />
+                  <input type="search" data-revenue-and placeholder="คำค้นหาที่ 3" />
+                  <input type="search" data-revenue-and placeholder="คำค้นหาที่ 4" />
+                </div>
+                <div class="transaction-search-block">
+                  <strong>ไม่รวม NOT</strong>
+                  <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 1" />
+                  <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 2" />
+                  <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 3" />
+                  <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 4" />
+                </div>
+              </div>
+              <div id="revenueDetailTable" class="table-wrap"></div>
+            </div>
+          </article>
+
+          <article class="panel collapsible-panel is-collapsed" id="targetContributionPanel">
+            <div class="panel-head">
+              <div>
+                <h2>
+                  <button type="button" class="panel-title-toggle" id="targetContributionToggle" aria-expanded="false" aria-controls="targetContributionBody">
+                    <span class="panel-toggle-icon" aria-hidden="true">+</span>
+                    Target Contribution Detail
+                  </button>
+                </h2>
+                <p>สรุป Deal ที่เป็น Billing = Recurring เพื่อดู contribution ต่อ Target รายเดือน</p>
+              </div>
+            </div>
+            <div class="collapsible-body" id="targetContributionBody" hidden>
+              <div id="revenuePerformanceDetail" class="table-wrap"></div>
+            </div>
+          </article>
+
+          <article class="panel collapsible-panel is-collapsed" id="revenueDataChecksPanel">
+            <div class="panel-head">
+              <div>
+                <h2>
+                  <button type="button" class="panel-title-toggle" id="revenueDataChecksToggle" aria-expanded="false" aria-controls="revenueDataChecksBody">
+                    <span class="panel-toggle-icon" aria-hidden="true">+</span>
+                    Revenue Data Checks
+                  </button>
+                </h2>
+                <p>รายการที่ควรตรวจสอบก่อนใช้เป็นข้อมูลทางบัญชีหรือรายงานผู้บริหาร</p>
+              </div>
+            </div>
+            <div class="collapsible-body" id="revenueDataChecksBody" hidden>
+              <div id="revenueExceptionTable" class="table-wrap"></div>
+            </div>
           </article>
         </div>
 
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <h2 id="revenueTargetTitle">Recurring Target from Revenue</h2>
-              <p id="revenueTargetDescription">ประเมิน Target จากกระแสรายได้ปีก่อนหน้า เฉพาะ Billing = Recurring โดยเลื่อนไปเดือนเดียวกันของปีถัดไป</p>
+        <div class="revenue-subtab-panel" data-revenue-panel="invoice">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 id="invoiceAnalysisTitle">Invoice Analysis</h2>
+                <p id="invoiceAnalysisDescription">กระจายยอด Invoice ตาม Posting Date เป็นรายเดือน เพื่อเปรียบเทียบกับ Revenue ที่ควรรับรู้</p>
+              </div>
+              <div class="invoice-analysis-actions">
+                <div class="segment compact-segment invoice-date-mode" aria-label="Invoice month basis">
+                  <button type="button" class="active" data-invoice-date-mode="posting">Posting Date</button>
+                  <button type="button" data-invoice-date-mode="service">Service Period</button>
+                </div>
+                <button type="button" class="primary-button export-button" id="exportInvoiceAnalysisCsv">Export CSV</button>
+              </div>
             </div>
-            <button type="button" class="primary-button export-button" id="exportRevenueTargetCsv">Export CSV</button>
-          </div>
-          <div id="revenueTargetSummary" class="lead-summary-grid revenue-target-summary"></div>
-          <div id="revenueTargetTable" class="table-wrap"></div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Revenue Detail</h2>
-              <p>รายการรายเดือนพร้อมข้อมูลสัญญา สำหรับ reconcile กับฝ่ายบัญชีและการเงิน (ฟังก์ชันค้นหาไม่รวม Contract)</p>
-            </div>
-            <div class="revenue-detail-actions">
-              <span class="revenue-total-badge">Monthly Revenue <strong id="revenueDetailMonthlyTotal">฿0</strong></span>
-              <button type="button" class="primary-button export-button" id="exportRevenueDetailCsv">Export CSV</button>
-            </div>
-          </div>
-          <div class="transaction-search-grid">
-            <div class="transaction-search-block">
-              <strong>ค้นหา AND</strong>
-              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 1" />
-              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 2" />
-              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 3" />
-              <input type="search" data-revenue-and placeholder="คำค้นหาที่ 4" />
-            </div>
-            <div class="transaction-search-block">
-              <strong>ไม่รวม NOT</strong>
-              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 1" />
-              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 2" />
-              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 3" />
-              <input type="search" data-revenue-not placeholder="ไม่รวมคำที่ 4" />
-            </div>
-          </div>
-          <div id="revenueDetailTable" class="table-wrap"></div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Revenue Data Checks</h2>
-              <p>รายการที่ควรตรวจสอบก่อนใช้เป็นข้อมูลทางบัญชีหรือรายงานผู้บริหาร</p>
-            </div>
-          </div>
-          <div id="revenueExceptionTable" class="table-wrap"></div>
-        </article>
+            <div id="invoiceAnalysisSummary" class="lead-summary-grid revenue-target-summary"></div>
+            <div id="invoiceAnalysisTable" class="table-wrap"></div>
+          </article>
+        </div>
       </section>
 
       <section class="tab-panel" id="tab-deals">

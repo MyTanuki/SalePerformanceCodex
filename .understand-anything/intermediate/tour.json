@@ -1,0 +1,50 @@
+[
+  {
+    "order": 1,
+    "title": "Project Overview & Domain Context",
+    "description": "Start here to understand what the dashboard does and why it exists. README.md explains the app's purpose, entry point, and data flow at a high level, while CONTEXT.md provides the business context around sales targets, revenue recognition, and the deal pipeline that drives every design decision in the codebase.",
+    "nodeIds": ["document:README.md", "document:CONTEXT.md"]
+  },
+  {
+    "order": 2,
+    "title": "Dashboard Layout & Tab Structure",
+    "description": "index.html is the single-page shell that defines all seven tabs — Overview, Sales Performance, Revenue Analysis, All Deals, Pipeline Risk, Data Quality, and New Deals. Reading it reveals how the UI is structured, where chart containers are anchored, and how the file-upload trigger connects to the rest of the app.",
+    "nodeIds": ["file:index.html", "endpoint:index.html:overview-tab", "endpoint:index.html:sales-performance-tab", "endpoint:index.html:revenue-analysis-tab", "endpoint:index.html:all-deals-tab", "endpoint:index.html:pipeline-risk-tab", "endpoint:index.html:data-quality-tab", "endpoint:index.html:new-deals-tab"]
+  },
+  {
+    "order": 3,
+    "title": "Visual Design & Theming System",
+    "description": "styles.css governs the entire visual language of the dashboard — color palette, typography, card layouts, table styles, and responsive breakpoints. Understanding the theming conventions here helps you interpret how chart and table output from app.js is ultimately presented to the user.",
+    "nodeIds": ["file:styles.css", "document:docs/CHART_STANDARDS.md"]
+  },
+  {
+    "order": 4,
+    "title": "Core Application Logic: CSV to Dashboard",
+    "description": "app.js is the heart of the application. It handles CSV file upload and parsing, applies stage mapping to normalize deal stages, orchestrates calls to revenue-logic.js for recognition calculations, and drives the rendering of all charts and tables across every tab. Trace the data flow from file input event to rendered output here.",
+    "nodeIds": ["file:app.js"]
+  },
+  {
+    "order": 5,
+    "title": "Revenue Recognition Engine",
+    "description": "scripts/revenue-logic.js is an isolated business logic module that encapsulates how revenue is recognized across time periods based on deal stage, close date, and contract value. Keeping this logic separate from app.js makes it independently testable and easier to adjust when revenue recognition rules change.",
+    "nodeIds": ["file:scripts/revenue-logic.js"]
+  },
+  {
+    "order": 6,
+    "title": "Reference Data: Targets, Stage Mapping & Fallback Data",
+    "description": "These three data files define the static inputs the app depends on. Sale Target.csv holds the sales quota figures used in performance comparisons, Stage Mapping.csv maps raw CRM stage names to normalized categories, and data/dashboard-data.js provides hardcoded fallback data so the dashboard renders meaningfully before any CSV is uploaded.",
+    "nodeIds": ["file:data/Sale Target.csv", "file:data/Stage Mapping.csv", "file:data/dashboard-data.js"]
+  },
+  {
+    "order": 7,
+    "title": "Testing & Local Development Tooling",
+    "description": "scripts/test-revenue-logic.js is the unit test suite for the revenue recognition engine — reviewing it alongside revenue-logic.js reveals the expected behavior and edge cases the business logic must handle. scripts/preview-server.js is the lightweight Node.js server used to serve the static app locally during development.",
+    "nodeIds": ["file:scripts/test-revenue-logic.js", "file:scripts/preview-server.js"]
+  },
+  {
+    "order": 8,
+    "title": "Deployment & Workflow Scripts",
+    "description": "The push and start scripts (start-preview.cmd, push-to-github.cmd, scripts/push-to-github.ps1) are the operational glue for the project. They show how a developer starts a local preview session and how the app is published — useful context for anyone setting up the project or contributing changes.",
+    "nodeIds": ["file:start-preview.cmd", "file:push-to-github.cmd", "file:scripts/push-to-github.ps1"]
+  }
+]

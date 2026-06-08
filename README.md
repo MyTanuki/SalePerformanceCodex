@@ -9,6 +9,8 @@ sale-performance-dashboard/
   index.html                  Main dashboard layout
   app.js                      CSV parsing, mapping, filters, charts, tables, and UI logic
   styles.css                  Light/dark theme and responsive layout
+  docs/
+    CHART_STANDARDS.md        Reusable visual standards for dashboard charts
   data/
     dashboard-data.js         Empty skeleton data loaded by the page
     Sale Target.csv           Optional default target file auto-loaded at startup
