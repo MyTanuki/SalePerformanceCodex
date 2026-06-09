@@ -237,8 +237,6 @@ const els = {
   revenuePerformanceChart: document.querySelector("#revenuePerformanceChart"),
   revenuePerformanceBySale: document.querySelector("#revenuePerformanceBySale"),
   revenuePerformanceDetail: document.querySelector("#revenuePerformanceDetail"),
-  revenueMonthlyChart: document.querySelector("#revenueMonthlyChart"),
-  revenueBySale: document.querySelector("#revenueBySale"),
   revenueTargetTitle: document.querySelector("#revenueTargetTitle"),
   revenueTargetDescription: document.querySelector("#revenueTargetDescription"),
   revenueTargetPanel: document.querySelector("#revenueTargetPanel"),
@@ -4100,25 +4098,6 @@ function buildRevenueAnalysis(scope) {
       recurringDeals: new Set(recurringEntries.map((entry) => dealDetailKey(entry.deal))).size,
     };
   });
-  const saleRows = Array.from(
-    selectedEntries.reduce((map, entry) => {
-      const key = entry.deal.saleKey || entry.deal.saleName;
-      if (!map.has(key)) {
-        map.set(key, {
-          saleName: entry.deal.saleName || "-",
-          group: entry.deal.group || "-",
-          amount: 0,
-          deals: new Set(),
-        });
-      }
-      const row = map.get(key);
-      row.amount += entry.amount;
-      row.deals.add(dealDetailKey(entry.deal));
-      return map;
-    }, new Map()).values(),
-  )
-    .map((row) => ({ ...row, amount: roundMoney(row.amount), dealCount: row.deals.size }))
-    .sort((a, b) => b.amount - a.amount);
   const detailRows = selectedEntries
     .map((entry) => revenueEntryRow(entry))
     .sort(sortRevenueRowsByTime);
@@ -4133,7 +4112,6 @@ function buildRevenueAnalysis(scope) {
     targetSchedules,
     selectedEntries,
     monthlyRows,
-    saleRows,
     detailRows,
     exceptionRows,
     recurringTarget,
@@ -4208,8 +4186,6 @@ function renderRevenueAnalysis(scope) {
   renderRevenueSubtabs();
   renderRevenueSummary(analysis, scope);
   renderRevenuePerformance(performance, scope);
-  renderRevenueMonthlyChart(analysis);
-  renderRevenueBySale(analysis);
   renderRecurringTargetFromRevenue(analysis.recurringTarget);
   renderRevenueDistribution(analysis.revenueDistribution);
   renderInvoiceAnalysis(analysis.invoiceAnalysis);
@@ -4539,62 +4515,11 @@ function renderRevenueSummary(analysis, scope) {
     .join("");
 }
 
-function renderRevenueMonthlyChart(analysis) {
-  const maxAmount = Math.max(1, ...analysis.monthlyRows.flatMap((row) => [row.amount || 0, row.recurringAmount || 0, row.target || 0]));
-  const rows = analysis.monthlyRows.filter((row) => row.amount || row.target || analysis.monthlyRows.length <= 12);
-  els.revenueMonthlyChart.innerHTML = rows.length
-    ? `
-      <div class="chart-legend-inline renew revenue-performance-legend">
-        <span class="legend-target">Recurring Target</span>
-        <span class="legend-won" style="--legend-color:var(--renew)">Actual Recurring</span>
-      </div>
-      ${rows
-        .map(
-          (row) => `
-            <div class="revenue-month-row">
-              <div class="lead-week-name">${escapeHtml(monthLabel(row.month))}</div>
-              <div class="revperf-bar-space">
-                <div class="revperf-target-base" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%" title="Recurring Target ${money(row.target || 0)}"></div>
-                <div class="revperf-actual-bar" style="width:${row.recurringAmount ? Math.min(100, Math.max(2, ((row.recurringAmount || 0) / maxAmount) * 100)) : 0}%" title="Actual Recurring ${money(row.recurringAmount || 0)}"></div>
-                <div class="revperf-target-outline" style="width:${row.target ? Math.min(100, Math.max(2, ((row.target || 0) / maxAmount) * 100)) : 0}%"></div>
-              </div>
-              <div class="lead-week-value">
-                <span class="muted">Target ${money(row.target || 0)}</span><br>
-                <span class="muted">Actual ${money(row.recurringAmount || 0)}</span>
-                <span class="achievement-pill revenue-achievement-inline ${achievementClass(row.achievement)}">${row.achievement == null ? "-" : percent(row.achievement)}</span><br>
-                <span class="muted">Gap ${signedMoney((row.recurringAmount || 0) - (row.target || 0))} · Total Revenue ${money(row.amount || 0)} · ${row.deals.toLocaleString("th-TH")} deals</span>
-              </div>
-            </div>
-          `,
-        )
-        .join("")}
-    `
-    : `<div class="empty">ไม่มี Revenue schedule ในช่วงเวลาที่เลือก</div>`;
-}
-
 function achievementClass(value) {
   if (value == null) return "neutral";
   if (value >= 1) return "good";
   if (value >= 0.8) return "warn";
   return "danger";
-}
-
-function renderRevenueBySale(analysis) {
-  const maxAmount = Math.max(1, ...analysis.saleRows.map((row) => row.amount));
-  els.revenueBySale.innerHTML = analysis.saleRows.length
-    ? analysis.saleRows
-        .slice(0, 15)
-        .map(
-          (row) => `
-            <div class="rank-row">
-              <div class="rank-name">${escapeHtml(row.saleName)}<br><span class="muted">${escapeHtml(row.group)}</span></div>
-              <div class="progress-track"><div class="progress-fill revenue-fill" style="width:${Math.max(2, (row.amount / maxAmount) * 100)}%"></div></div>
-              <div class="rank-value">${money(row.amount)}<br>${row.dealCount.toLocaleString("th-TH")} deals</div>
-            </div>
-          `,
-        )
-        .join("")
-    : `<div class="empty">ไม่มี Revenue ตามเงื่อนไขที่เลือก</div>`;
 }
 
 function renderRecurringTargetFromRevenue(target) {
