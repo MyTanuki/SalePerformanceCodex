@@ -3839,8 +3839,8 @@ function buildRecurringTargetFromRevenue(schedules, targetYear) {
   return revenueLogic.buildRecurringTargetFromRevenue(schedules, targetYear);
 }
 
-function buildRevenueDistributionFromRevenue(schedules, targetYear) {
-  const months = targetYearMonths(targetYear);
+function buildRevenueDistributionFromRevenue(schedules, targetYear, selectedMonths) {
+  const months = selectedMonths && selectedMonths.length ? selectedMonths : targetYearMonths(targetYear);
   const monthSet = new Set(months);
   const rowsByKey = new Map();
   const monthlyTotals = Object.fromEntries(months.map((month) => [month, 0]));
@@ -4044,7 +4044,7 @@ function buildRevenueAnalysis(scope) {
   const targetSchedules = targetBaseDeals.map(revenueScheduleForDeal);
   const revenueYear = revenueTargetYearFromScope(scope);
   const recurringTarget = buildRecurringTargetFromRevenue(targetSchedules, revenueYear);
-  const revenueDistribution = buildRevenueDistributionFromRevenue(schedules, revenueYear);
+  const revenueDistribution = buildRevenueDistributionFromRevenue(schedules, revenueYear, scope.months);
   const invoiceAnalysis = buildInvoiceDistributionFromInvoices(invoiceRowsForAnalysis(scope), revenueYear);
   const selectedEntries = schedules
     .flatMap((schedule) =>
@@ -4601,15 +4601,16 @@ function renderRecurringTargetFromRevenue(target) {
 
 function renderRevenueDistribution(distribution) {
   if (!els.revenueDistributionSummary || !els.revenueDistributionTable) return;
-  if (els.revenueDistributionTitle) els.revenueDistributionTitle.textContent = `${distribution.targetYear} Revenue Distribution`;
+  const periodText = periodLabel();
+  if (els.revenueDistributionTitle) els.revenueDistributionTitle.textContent = `${periodText} Revenue Distribution`;
   if (els.revenueDistributionDescription) {
-    els.revenueDistributionDescription.textContent = `กระจาย Revenue ปี ${distribution.targetYear} เป็นรายเดือนตามสัญญาของ Deals ที่อยู่ในขอบเขตการวิเคราะห์`;
+    els.revenueDistributionDescription.textContent = `กระจาย Revenue ของ ${periodText} เป็นรายเดือนตามสัญญาของ Deals ที่อยู่ในขอบเขตการวิเคราะห์`;
   }
   const avgMonthly = distribution.months.length ? distribution.total / distribution.months.length : 0;
   const activeMonths = distribution.months.filter((month) => distribution.monthlyTotals[month]).length;
   const cards = [
-    [`${distribution.targetYear} Revenue`, compactMoney(distribution.total), "ยอด Revenue ที่กระจายตามเดือน"],
-    ["Revenue Deals", distribution.dealCount.toLocaleString("th-TH"), "Deals ที่มี revenue ในปีที่เลือก"],
+    ["Revenue", compactMoney(distribution.total), "ยอด Revenue ที่กระจายตามเดือน"],
+    ["Revenue Deals", distribution.dealCount.toLocaleString("th-TH"), "Deals ที่มี revenue ในช่วงที่เลือก"],
     ["Avg Revenue / Month", compactMoney(avgMonthly), `${activeMonths.toLocaleString("th-TH")} active months`],
     ["Distribution Rows", distribution.rows.length.toLocaleString("th-TH"), "Sale + Type"],
   ];
@@ -4627,7 +4628,7 @@ function renderRevenueDistribution(distribution) {
   els.revenueDistributionTable.innerHTML = recurringTargetTable(distribution, {
     expandedMap: state.revenueDistributionExpanded,
     toggleAttr: "data-revenue-distribution-toggle",
-    emptyMessage: `ไม่มี Revenue ปี ${distribution.targetYear} ในขอบเขตการวิเคราะห์`,
+    emptyMessage: `ไม่มี Revenue ในช่วง ${periodText} ในขอบเขตการวิเคราะห์`,
     formatContractRange: displayDateRangeDmy,
   });
 }
