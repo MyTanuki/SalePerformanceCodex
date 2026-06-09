@@ -502,6 +502,7 @@ function createDefaultMappings() {
     stageMap,
     dealTypeMap,
     salesGroupMap,
+    pipelinePrimaryGroups: ["AM1"],
     counts: { pipelines: 0, pipelineRules: 0, stages: stageMap.size, dealTypes: dealTypeMap.size, sales: salesGroupMap.size },
   };
 }
@@ -518,6 +519,7 @@ function hydrateMappings(mappingData) {
     stageMap: new Map(Object.entries(mappingData.stageMap || {})),
     dealTypeMap: new Map(Object.entries(mappingData.dealTypeMap || {})),
     salesGroupMap: new Map(Object.entries(mappingData.salesGroupMap || {})),
+    pipelinePrimaryGroups: Array.isArray(mappingData.pipelinePrimaryGroups) ? mappingData.pipelinePrimaryGroups : ["AM1"],
     counts: mappingData.counts || { pipelines: 0, pipelineRules: 0, stages: 0, dealTypes: 0, sales: 0 },
   };
 }
@@ -535,6 +537,7 @@ function serializeMappings(mappings) {
     stageMap: mapToObject(mappings.stageMap),
     dealTypeMap: mapToObject(mappings.dealTypeMap),
     salesGroupMap: mapToObject(mappings.salesGroupMap),
+    pipelinePrimaryGroups: Array.isArray(mappings.pipelinePrimaryGroups) ? mappings.pipelinePrimaryGroups : ["AM1"],
     counts: mappings.counts,
   };
 }
@@ -556,6 +559,7 @@ function mergeMappings(baseMappings, updateMappings) {
     stageMap: new Map(baseMappings.stageMap),
     dealTypeMap: new Map(baseMappings.dealTypeMap),
     salesGroupMap: new Map(baseMappings.salesGroupMap),
+    pipelinePrimaryGroups: (updateMappings.pipelinePrimaryGroups && updateMappings.pipelinePrimaryGroups.length ? updateMappings.pipelinePrimaryGroups : baseMappings.pipelinePrimaryGroups) || ["AM1"],
   };
   updateMappings.pipelineGroupMap.forEach((group, pipeline) => merged.pipelineGroupMap.set(pipeline, group));
   updateMappings.pipelineRuleMap?.forEach((pipelines, key) => {
@@ -576,6 +580,7 @@ function parseMappingCsv(text) {
   const stageMap = new Map();
   const dealTypeMap = new Map();
   const salesGroupMap = new Map();
+  const pipelinePrimaryGroups = [];
   let section = "";
   let pipelineHeaders = [];
 
@@ -598,6 +603,10 @@ function parseMappingCsv(text) {
     }
     if (first === "sales" && second === "sale group") {
       section = "sales";
+      continue;
+    }
+    if (first === "pipeline primary" || first === "pipeline primary group") {
+      section = "pipelinePrimary";
       continue;
     }
 
@@ -625,6 +634,8 @@ function parseMappingCsv(text) {
         const displayName = cleanText(row[0]).replace(/\s+/g, " ");
         salesGroupMap.set(normalizeName(row[0]), { displayName, group: row[1] });
       }
+    } else if (section === "pipelinePrimary") {
+      if (row[0] && normalizeName(row[0]) !== normalizeName("Sale Group")) pipelinePrimaryGroups.push(row[0]);
     }
   }
 
@@ -634,6 +645,7 @@ function parseMappingCsv(text) {
     stageMap,
     dealTypeMap,
     salesGroupMap,
+    pipelinePrimaryGroups,
     counts: {
       pipelines: pipelineGroupMap.size,
       pipelineRules: Array.from(pipelineRuleMap.values()).reduce((total, values) => total + values.size, 0),
@@ -676,6 +688,23 @@ function pipelineCountingResult(group, category, pipeline, mappings = activeMapp
   if (!allowedPipelines) return { status: "unmapped", included: false, label: "Unmapped rule" };
   if (allowedPipelines.has(normalizeName(pipeline))) return { status: "included", included: true, label: "Included" };
   return { status: "excluded", included: false, label: "Excluded pipeline" };
+}
+
+function categoryFromPipeline(group, pipeline, mappings = activeMappings()) {
+  const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
+  if (!primaryGroups.some((item) => normalizeName(item) === normalizeName(group))) return "";
+  const rules = mappings.pipelineRuleMap;
+  if (!rules || !rules.size) return "";
+  const pipe = normalizeName(pipeline);
+  const renewAllowed = Boolean(rules.get(pipelineRuleKey(group, "renew"))?.has(pipe));
+  const newAllowed = Boolean(rules.get(pipelineRuleKey(group, "new"))?.has(pipe));
+  if (renewAllowed && !newAllowed) return "renew";
+  if (newAllowed && !renewAllowed) return "new";
+  return "";
+}
+
+function resolveCategory(group, pipeline, fallbackCategory, mappings = activeMappings()) {
+  return categoryFromPipeline(group, pipeline, mappings) || fallbackCategory;
 }
 
 function parseDateValue(value) {
@@ -2465,8 +2494,9 @@ function remapDashboardDataWithMappings(data, mappings) {
     const status = normalizeDealStage(stage);
     const rawDealType = cleanText(deal.rawDealType || deal.dealType);
     const dealType = mappedDealType(rawDealType, mappings);
-    const category = dealCategory(dealType, { Pipeline: deal.pipeline, "Deal Type": rawDealType });
     const sale = salesByKey.get(deal.saleKey);
+    const baseCategory = dealCategory(dealType, { Pipeline: deal.pipeline, "Deal Type": rawDealType });
+    const category = resolveCategory(sale?.group || deal.group, deal.pipeline, baseCategory, mappings);
     const pipelineGroup = mappings.pipelineGroupMap.get(normalizeName(deal.pipeline)) || "";
     const counting = pipelineCountingResult(sale?.group || deal.group, category, deal.pipeline, mappings);
     const expected = parseDateValue(deal.expectedDate);
@@ -2623,7 +2653,7 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
     const displayStage = mappedStage(rawStage, mappings);
     const status = normalizeDealStage(displayStage);
     const dealType = mappedDealType(row["Deal Type"], mappings);
-    const category = dealCategory(dealType, row);
+    let category = dealCategory(dealType, row);
     const expected = parseDateValue(row["Expected close date"]);
     const stageChanged = parseDateValue(row["Stage change date"]);
     const created = parseDateValue(row.Created);
@@ -2651,6 +2681,7 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
 
     const sale = saleByKey.get(saleKey);
     if (!sale.responsibleNames.includes(responsible)) sale.responsibleNames.push(responsible);
+    category = resolveCategory(sale.group, pipeline, category, mappings);
     const counting = pipelineCountingResult(sale.group, category, pipeline, mappings);
 
     if (sale.group === "Unmapped") {
