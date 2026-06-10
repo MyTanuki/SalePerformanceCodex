@@ -188,7 +188,6 @@ const els = {
   clearPipelineMatching: document.querySelector("#clearPipelineMatching"),
   pipelineMatchingSummary: document.querySelector("#pipelineMatchingSummary"),
   pipelineMatchingMatrix: document.querySelector("#pipelineMatchingMatrix"),
-  pipelinePrimaryMode: document.querySelector("#pipelinePrimaryMode"),
   pipelinePrimaryGroupSelect: document.querySelector("#pipelinePrimaryGroupSelect"),
   pipelinePrimaryModeNote: document.querySelector("#pipelinePrimaryModeNote"),
   viewMode: document.querySelector("#viewMode"),
@@ -696,11 +695,8 @@ function pipelineCountingResult(group, category, pipeline, mappings = activeMapp
 }
 
 function categoryFromPipeline(group, pipeline, mappings = activeMappings()) {
-  const mode = mappings.pipelinePrimaryMode === "global" ? "global" : "optin";
-  if (mode !== "global") {
-    const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
-    if (!primaryGroups.some((item) => normalizeName(item) === normalizeName(group))) return "";
-  }
+  const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
+  if (!primaryGroups.some((item) => normalizeName(item) === normalizeName(group))) return "";
   const rules = mappings.pipelineRuleMap;
   if (!rules || !rules.size) return "";
   const pipe = normalizeName(pipeline);
@@ -1380,7 +1376,6 @@ function initFilters() {
   });
   els.savePipelineMatching.addEventListener("click", savePipelineMatching);
   els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
-  els.pipelinePrimaryMode?.addEventListener("change", () => applyPipelinePrimaryMode(els.pipelinePrimaryMode.value));
   els.pipelinePrimaryGroupSelect?.addEventListener("change", () => {
     const selected = Array.from(els.pipelinePrimaryGroupSelect.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.value);
     applyPipelinePrimaryGroups(selected);
@@ -1931,21 +1926,16 @@ function renderPipelineMatchingSettings() {
   const groups = pipelineMatchingGroups();
   const pipelines = pipelineMatchingPipelines();
   const mappings = activeMappings();
-  const primaryMode = mappings.pipelinePrimaryMode === "global" ? "global" : "optin";
-  if (els.pipelinePrimaryMode) els.pipelinePrimaryMode.value = primaryMode;
   if (els.pipelinePrimaryGroupSelect) {
     const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
     const primaryGroupSet = new Set(primaryGroups.map(normalizeName));
     els.pipelinePrimaryGroupSelect.innerHTML = groups
       .map((g) => `<label><input type="checkbox" value="${escapeHtml(g)}"${primaryGroupSet.has(normalizeName(g)) ? " checked" : ""}><span>${escapeHtml(g)}</span></label>`)
       .join("");
-    els.pipelinePrimaryGroupSelect.hidden = primaryMode === "global";
   }
   if (els.pipelinePrimaryModeNote) {
     const groupsText = (mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"]).join(", ");
-    els.pipelinePrimaryModeNote.textContent = primaryMode === "global"
-      ? "ทุกกลุ่ม: อนุมาน New/Renew จาก Pipeline เมื่อ pipeline ผูกกับ type เดียว (กลุ่มที่กำกวมใช้ Deal Type)"
-      : `เฉพาะกลุ่ม: ${groupsText} (กลุ่มอื่นใช้ Deal Type ตามเดิม)`;
+    els.pipelinePrimaryModeNote.textContent = `เฉพาะกลุ่ม: ${groupsText} (กลุ่มอื่นใช้ Deal Type ตามเดิม)`;
   }
   const ruleCount = mappingCounts(mappings).pipelineRules || 0;
   els.pipelineMatchingSummary.textContent = ruleCount
@@ -2038,17 +2028,6 @@ function savePipelineMatching() {
 
 function clearPipelineMatching() {
   applyPipelineMatchingRules(new Map(), "ล้าง Pipeline Matching แล้ว ระบบกลับไปนับทุก Pipeline");
-}
-
-function applyPipelinePrimaryMode(mode) {
-  const normalized = mode === "global" ? "global" : "optin";
-  const mappings = activeMappings();
-  mappings.pipelinePrimaryMode = normalized;
-  dashboardData = remapDashboardDataWithMappings({ ...dashboardData, mappings: serializeMappings(mappings) }, mappings);
-  storeDashboardData(dashboardData);
-  render();
-  renderPipelineMatchingSettings();
-  setUploadStatus(normalized === "global" ? "ใช้โหมดอนุมาน New/Renew จาก Pipeline แบบทุกกลุ่ม (Global)" : "ใช้โหมดอนุมาน New/Renew จาก Pipeline เฉพาะกลุ่มที่กำหนด (Opt-in)", "success");
 }
 
 function applyPipelinePrimaryGroups(groups) {
