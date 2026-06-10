@@ -2425,6 +2425,12 @@ function parseInvoiceServiceStart(period) {
   const match = text.match(/(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})/);
   return match ? parseDateValue(match[1]) : null;
 }
+function parseInvoiceServiceEnd(period) {
+  const text = cleanText(period);
+  if (!text) return null;
+  const matches = [...text.matchAll(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/g)];
+  return matches.length >= 2 ? parseDateValue(matches[1][0]) : null;
+}
 
 function mergeInvoiceRowsIntoDashboard(data, invoiceRows, fileName) {
   return {
@@ -4032,7 +4038,7 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
         });
       }
       const row = rowsByKey.get(key);
-      const detailKey = `${invoice.documentNo || invoice.id}|${invoice.company}|${invoice.dealName}|${invoice.contractRange}|${invoice.amount}`;
+      const detailKey = `${invoice.company || "-"}|${invoice.dealName || "-"}`;
       if (!row.detailMap.has(detailKey)) {
         row.detailMap.set(detailKey, {
           key: detailKey,
@@ -4040,6 +4046,10 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
           dealName: invoice.dealName || invoice.documentNo || "-",
           postingDate: invoice.postingDate || "-",
           contractRange: invoice.contractRange || invoice.postingDate || "-",
+          _contractStartTs: 0,
+          _contractEndTs: 0,
+          _contractStartDate: "",
+          _contractEndDate: "",
           billingType: [invoice.category, invoice.billingType].filter(Boolean).join(" / ") || "-",
           monthly: Object.fromEntries(months.map((month) => [month, 0])),
           total: 0,
@@ -4047,6 +4057,16 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
         });
       }
       const detail = row.detailMap.get(detailKey);
+      const crStart = parseInvoiceServiceStart(invoice.contractRange);
+      const crEnd = parseInvoiceServiceEnd(invoice.contractRange) || crStart;
+      if (crStart && crStart.ts && (!detail._contractStartTs || crStart.ts < detail._contractStartTs)) {
+        detail._contractStartTs = crStart.ts;
+        detail._contractStartDate = crStart.date;
+      }
+      if (crEnd && crEnd.ts && crEnd.ts > detail._contractEndTs) {
+        detail._contractEndTs = crEnd.ts;
+        detail._contractEndDate = crEnd.date;
+      }
       row.monthly[invoice.analysisMonthKey] = roundMoney(row.monthly[invoice.analysisMonthKey] + invoice.amount);
       detail.monthly[invoice.analysisMonthKey] = roundMoney(detail.monthly[invoice.analysisMonthKey] + invoice.amount);
       detail.total = roundMoney(detail.total + invoice.amount);
@@ -4064,10 +4084,12 @@ function buildInvoiceDistributionFromInvoices(invoices, targetYear) {
       dealCount: row.deals.size,
       companyCount: row.companies.size,
       details: Array.from(row.detailMap.values())
-        .map((detail) => ({
-          ...detail,
-          sourceMonths: Array.from(detail.sourceMonths).sort(),
-        }))
+        .map((detail) => {
+          const contractRange = detail._contractStartDate
+            ? `${displayDateDmy(detail._contractStartDate)}-${displayDateDmy(detail._contractEndDate || detail._contractStartDate)}`
+            : detail.contractRange;
+          return { ...detail, contractRange, sourceMonths: Array.from(detail.sourceMonths).sort() };
+        })
         .sort(
           (a, b) =>
             b.total - a.total ||
