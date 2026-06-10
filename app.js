@@ -189,6 +189,7 @@ const els = {
   pipelineMatchingSummary: document.querySelector("#pipelineMatchingSummary"),
   pipelineMatchingMatrix: document.querySelector("#pipelineMatchingMatrix"),
   pipelinePrimaryMode: document.querySelector("#pipelinePrimaryMode"),
+  pipelinePrimaryGroupSelect: document.querySelector("#pipelinePrimaryGroupSelect"),
   pipelinePrimaryModeNote: document.querySelector("#pipelinePrimaryModeNote"),
   viewMode: document.querySelector("#viewMode"),
   groupFilterContainer: document.querySelector("#groupFilterContainer"),
@@ -1380,6 +1381,10 @@ function initFilters() {
   els.savePipelineMatching.addEventListener("click", savePipelineMatching);
   els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
   els.pipelinePrimaryMode?.addEventListener("change", () => applyPipelinePrimaryMode(els.pipelinePrimaryMode.value));
+  els.pipelinePrimaryGroupSelect?.addEventListener("change", () => {
+    const selected = Array.from(els.pipelinePrimaryGroupSelect.selectedOptions).map((o) => o.value);
+    applyPipelinePrimaryGroups(selected);
+  });
   document.addEventListener("click", (event) => {
     const settingsButton = event.target.closest("#openSettings");
     if (settingsButton) openSettings();
@@ -1928,6 +1933,14 @@ function renderPipelineMatchingSettings() {
   const mappings = activeMappings();
   const primaryMode = mappings.pipelinePrimaryMode === "global" ? "global" : "optin";
   if (els.pipelinePrimaryMode) els.pipelinePrimaryMode.value = primaryMode;
+  if (els.pipelinePrimaryGroupSelect) {
+    const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
+    const primaryGroupSet = new Set(primaryGroups.map(normalizeName));
+    els.pipelinePrimaryGroupSelect.innerHTML = groups
+      .map((g) => `<option value="${escapeHtml(g)}"${primaryGroupSet.has(normalizeName(g)) ? " selected" : ""}>${escapeHtml(g)}</option>`)
+      .join("");
+    els.pipelinePrimaryGroupSelect.hidden = primaryMode === "global";
+  }
   if (els.pipelinePrimaryModeNote) {
     const groupsText = (mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"]).join(", ");
     els.pipelinePrimaryModeNote.textContent = primaryMode === "global"
@@ -2036,6 +2049,16 @@ function applyPipelinePrimaryMode(mode) {
   render();
   renderPipelineMatchingSettings();
   setUploadStatus(normalized === "global" ? "ใช้โหมดอนุมาน New/Renew จาก Pipeline แบบทุกกลุ่ม (Global)" : "ใช้โหมดอนุมาน New/Renew จาก Pipeline เฉพาะกลุ่มที่กำหนด (Opt-in)", "success");
+}
+
+function applyPipelinePrimaryGroups(groups) {
+  const mappings = activeMappings();
+  mappings.pipelinePrimaryGroups = groups.length ? groups : ["AM1"];
+  dashboardData = remapDashboardDataWithMappings({ ...dashboardData, mappings: serializeMappings(mappings) }, mappings);
+  storeDashboardData(dashboardData);
+  render();
+  renderPipelineMatchingSettings();
+  setUploadStatus(`กลุ่มที่ใช้อนุมาน New/Renew: ${mappings.pipelinePrimaryGroups.join(", ")}`, "success");
 }
 
 async function autoLoadDefaultSetupFiles() {

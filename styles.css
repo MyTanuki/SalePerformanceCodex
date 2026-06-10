@@ -603,6 +603,22 @@ input[type="file"] {
   color: var(--muted);
 }
 
+.pipeline-primary-mode {
+  margin-bottom: 1em;
+}
+
+.pipeline-primary-group-select {
+  display: block;
+  min-width: 160px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
 .pipeline-matching-matrix {
   width: fit-content;
   max-width: 100%;
