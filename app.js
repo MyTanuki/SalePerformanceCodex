@@ -4810,7 +4810,8 @@ function exportRevenueBreakdownCsv(target, fileName, options = {}) {
   const formatContractRange = options.formatContractRange || ((value) => value);
   const headers = [
     "Sale",
-    "Customer/Project",
+    "Customer",
+    "Project",
     ...(options.includePostingDate ? ["Posting Date"] : []),
     "Sale Group / Contract",
     "Last Deal Type / Billing",
@@ -4820,7 +4821,7 @@ function exportRevenueBreakdownCsv(target, fileName, options = {}) {
   const exportRows = target.rows.flatMap((row) =>
     (row.details || []).flatMap((detail) => {
       const detailName = `${detail.company || "-"}${detail.dealName ? ` | ${detail.dealName}` : ""}`;
-      const baseColumns = [row.saleName, detailName];
+      const baseColumns = [row.saleName, detail.company || "-", detail.dealName || "-"];
       if (options.splitByMonthPostingDate) {
         return target.months
           .filter((month) => detail.monthly?.[month])
