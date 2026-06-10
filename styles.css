@@ -627,6 +627,13 @@ input[type="file"] {
   user-select: none;
 }
 
+.pipeline-primary-group-select input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 .pipeline-primary-group-select input[type="checkbox"]:checked ~ span {
   font-weight: 600;
 }
@@ -724,7 +731,7 @@ input[type="file"] {
 .pipeline-match-cell input {
   width: 16px;
   height: 16px;
-  accent-color: var(--ink);
+  accent-color: var(--primary);
   cursor: pointer;
 }
 
