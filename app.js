@@ -188,6 +188,8 @@ const els = {
   clearPipelineMatching: document.querySelector("#clearPipelineMatching"),
   pipelineMatchingSummary: document.querySelector("#pipelineMatchingSummary"),
   pipelineMatchingMatrix: document.querySelector("#pipelineMatchingMatrix"),
+  pipelinePrimaryMode: document.querySelector("#pipelinePrimaryMode"),
+  pipelinePrimaryModeNote: document.querySelector("#pipelinePrimaryModeNote"),
   viewMode: document.querySelector("#viewMode"),
   groupFilterContainer: document.querySelector("#groupFilterContainer"),
   salesFilterContainer: document.querySelector("#salesFilterContainer"),
@@ -501,6 +503,7 @@ function createDefaultMappings() {
     dealTypeMap,
     salesGroupMap,
     pipelinePrimaryGroups: ["AM1"],
+    pipelinePrimaryMode: "optin",
     counts: { pipelines: 0, pipelineRules: 0, stages: stageMap.size, dealTypes: dealTypeMap.size, sales: salesGroupMap.size },
   };
 }
@@ -518,6 +521,7 @@ function hydrateMappings(mappingData) {
     dealTypeMap: new Map(Object.entries(mappingData.dealTypeMap || {})),
     salesGroupMap: new Map(Object.entries(mappingData.salesGroupMap || {})),
     pipelinePrimaryGroups: Array.isArray(mappingData.pipelinePrimaryGroups) ? mappingData.pipelinePrimaryGroups : ["AM1"],
+    pipelinePrimaryMode: mappingData.pipelinePrimaryMode === "global" ? "global" : "optin",
     counts: mappingData.counts || { pipelines: 0, pipelineRules: 0, stages: 0, dealTypes: 0, sales: 0 },
   };
 }
@@ -536,6 +540,7 @@ function serializeMappings(mappings) {
     dealTypeMap: mapToObject(mappings.dealTypeMap),
     salesGroupMap: mapToObject(mappings.salesGroupMap),
     pipelinePrimaryGroups: Array.isArray(mappings.pipelinePrimaryGroups) ? mappings.pipelinePrimaryGroups : ["AM1"],
+    pipelinePrimaryMode: mappings.pipelinePrimaryMode === "global" ? "global" : "optin",
     counts: mappings.counts,
   };
 }
@@ -558,6 +563,7 @@ function mergeMappings(baseMappings, updateMappings) {
     dealTypeMap: new Map(baseMappings.dealTypeMap),
     salesGroupMap: new Map(baseMappings.salesGroupMap),
     pipelinePrimaryGroups: (updateMappings.pipelinePrimaryGroups && updateMappings.pipelinePrimaryGroups.length ? updateMappings.pipelinePrimaryGroups : baseMappings.pipelinePrimaryGroups) || ["AM1"],
+    pipelinePrimaryMode: updateMappings.pipelinePrimaryMode || baseMappings.pipelinePrimaryMode || "optin",
   };
   updateMappings.pipelineGroupMap.forEach((group, pipeline) => merged.pipelineGroupMap.set(pipeline, group));
   updateMappings.pipelineRuleMap?.forEach((pipelines, key) => {
@@ -689,8 +695,11 @@ function pipelineCountingResult(group, category, pipeline, mappings = activeMapp
 }
 
 function categoryFromPipeline(group, pipeline, mappings = activeMappings()) {
-  const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
-  if (!primaryGroups.some((item) => normalizeName(item) === normalizeName(group))) return "";
+  const mode = mappings.pipelinePrimaryMode === "global" ? "global" : "optin";
+  if (mode !== "global") {
+    const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
+    if (!primaryGroups.some((item) => normalizeName(item) === normalizeName(group))) return "";
+  }
   const rules = mappings.pipelineRuleMap;
   if (!rules || !rules.size) return "";
   const pipe = normalizeName(pipeline);
@@ -1370,6 +1379,7 @@ function initFilters() {
   });
   els.savePipelineMatching.addEventListener("click", savePipelineMatching);
   els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
+  els.pipelinePrimaryMode?.addEventListener("change", () => applyPipelinePrimaryMode(els.pipelinePrimaryMode.value));
   document.addEventListener("click", (event) => {
     const settingsButton = event.target.closest("#openSettings");
     if (settingsButton) openSettings();
@@ -1916,6 +1926,14 @@ function renderPipelineMatchingSettings() {
   const groups = pipelineMatchingGroups();
   const pipelines = pipelineMatchingPipelines();
   const mappings = activeMappings();
+  const primaryMode = mappings.pipelinePrimaryMode === "global" ? "global" : "optin";
+  if (els.pipelinePrimaryMode) els.pipelinePrimaryMode.value = primaryMode;
+  if (els.pipelinePrimaryModeNote) {
+    const groupsText = (mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"]).join(", ");
+    els.pipelinePrimaryModeNote.textContent = primaryMode === "global"
+      ? "ทุกกลุ่ม: อนุมาน New/Renew จาก Pipeline เมื่อ pipeline ผูกกับ type เดียว (กลุ่มที่กำกวมใช้ Deal Type)"
+      : `เฉพาะกลุ่ม: ${groupsText} (กลุ่มอื่นใช้ Deal Type ตามเดิม)`;
+  }
   const ruleCount = mappingCounts(mappings).pipelineRules || 0;
   els.pipelineMatchingSummary.textContent = ruleCount
     ? `มี Pipeline Matching ที่เลือกไว้ ${ruleCount.toLocaleString("th-TH")} จุด ระบบจะนับยอดเฉพาะรายการ Included`
@@ -2007,6 +2025,17 @@ function savePipelineMatching() {
 
 function clearPipelineMatching() {
   applyPipelineMatchingRules(new Map(), "ล้าง Pipeline Matching แล้ว ระบบกลับไปนับทุก Pipeline");
+}
+
+function applyPipelinePrimaryMode(mode) {
+  const normalized = mode === "global" ? "global" : "optin";
+  const mappings = activeMappings();
+  mappings.pipelinePrimaryMode = normalized;
+  dashboardData = remapDashboardDataWithMappings({ ...dashboardData, mappings: serializeMappings(mappings) }, mappings);
+  storeDashboardData(dashboardData);
+  render();
+  renderPipelineMatchingSettings();
+  setUploadStatus(normalized === "global" ? "ใช้โหมดอนุมาน New/Renew จาก Pipeline แบบทุกกลุ่ม (Global)" : "ใช้โหมดอนุมาน New/Renew จาก Pipeline เฉพาะกลุ่มที่กำหนด (Opt-in)", "success");
 }
 
 async function autoLoadDefaultSetupFiles() {
