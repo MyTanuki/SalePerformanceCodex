@@ -608,15 +608,27 @@ input[type="file"] {
 }
 
 .pipeline-primary-group-select {
-  display: block;
-  min-width: 160px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 6px;
+}
+
+.pipeline-primary-group-select label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px;
+  border-radius: 4px;
   font-size: 13px;
   background: var(--surface);
-  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pipeline-primary-group-select input[type="checkbox"]:checked ~ span {
+  font-weight: 600;
 }
 
 .pipeline-matching-matrix {

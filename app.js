@@ -1382,7 +1382,7 @@ function initFilters() {
   els.clearPipelineMatching.addEventListener("click", clearPipelineMatching);
   els.pipelinePrimaryMode?.addEventListener("change", () => applyPipelinePrimaryMode(els.pipelinePrimaryMode.value));
   els.pipelinePrimaryGroupSelect?.addEventListener("change", () => {
-    const selected = Array.from(els.pipelinePrimaryGroupSelect.selectedOptions).map((o) => o.value);
+    const selected = Array.from(els.pipelinePrimaryGroupSelect.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.value);
     applyPipelinePrimaryGroups(selected);
   });
   document.addEventListener("click", (event) => {
@@ -1937,7 +1937,7 @@ function renderPipelineMatchingSettings() {
     const primaryGroups = mappings.pipelinePrimaryGroups && mappings.pipelinePrimaryGroups.length ? mappings.pipelinePrimaryGroups : ["AM1"];
     const primaryGroupSet = new Set(primaryGroups.map(normalizeName));
     els.pipelinePrimaryGroupSelect.innerHTML = groups
-      .map((g) => `<option value="${escapeHtml(g)}"${primaryGroupSet.has(normalizeName(g)) ? " selected" : ""}>${escapeHtml(g)}</option>`)
+      .map((g) => `<label><input type="checkbox" value="${escapeHtml(g)}"${primaryGroupSet.has(normalizeName(g)) ? " checked" : ""}><span>${escapeHtml(g)}</span></label>`)
       .join("");
     els.pipelinePrimaryGroupSelect.hidden = primaryMode === "global";
   }
