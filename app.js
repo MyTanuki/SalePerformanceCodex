@@ -931,12 +931,12 @@ function weeksInIsoYear(year) {
 }
 
 function dealTrackingDate(deal) {
-  return deal.trackingDate || (deal.status === "open" ? deal.expectedDate : deal.stageChangeDate || deal.expectedDate || deal.createdDate);
+  return deal.expectedDate || deal.trackingDate || deal.stageChangeDate || deal.createdDate;
 }
 
 function dealPeriodKey(deal, periodKey) {
   if (isIsoWeekKey(periodKey)) return isoWeekKeyFromDate(dealTrackingDate(deal));
-  return deal.trackingMonth || (deal.status === "open" ? deal.expectedMonth : deal.stageMonth || deal.expectedMonth);
+  return deal.expectedMonth || deal.trackingMonth || deal.stageMonth;
 }
 
 function dealPeriodLabel(deal) {
@@ -2539,8 +2539,8 @@ function remapDashboardDataWithMappings(data, mappings) {
     const created = parseDateValue(deal.createdDate);
     const closeDate = stageChanged || expected || created;
     const stageAgeDays = stageChanged ? Math.floor((today.ts - stageChanged.ts) / dayMs) : deal.stageAgeDays ?? null;
-    const trackingMonth = status === "open" ? expected?.monthKey || deal.expectedMonth || "" : closeDate?.monthKey || deal.trackingMonth || "";
-    const trackingDate = status === "open" ? expected?.date || "" : closeDate?.date || "";
+    const trackingMonth = expected?.monthKey || deal.expectedMonth || closeDate?.monthKey || deal.trackingMonth || "";
+    const trackingDate = expected?.date || closeDate?.date || "";
     const amount = Number(deal.amount) || 0;
     const forecastAmount = status === "open" ? roundMoney(amount * stageWeightFor(rawStage, stage)) : 0;
     const risk = {
@@ -2767,8 +2767,8 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
       stageChangeDate: stageChanged?.date || "",
       stageMonth: stageChanged?.monthKey || "",
       createdDate: created?.date || "",
-      trackingMonth: status === "open" ? expected?.monthKey || "" : closeDate?.monthKey || "",
-      trackingDate: status === "open" ? expected?.date || "" : closeDate?.date || "",
+      trackingMonth: expected?.monthKey || closeDate?.monthKey || "",
+      trackingDate: expected?.date || closeDate?.date || "",
       stageAgeDays: stageChanged ? Math.floor((today.ts - stageChanged.ts) / dayMs) : null,
       risk: {
         overdue: Boolean(expected && expected.ts < today.ts),
@@ -2792,7 +2792,7 @@ function buildDashboardDataFromDeals(dealRows, fileName, targetSalesOverride = c
 
     if (status === "won" || status === "lost") {
       addQuality(status === "won" ? quality.won : quality.lost, amount);
-      const monthKey = closeDate?.monthKey || "";
+      const monthKey = expected?.monthKey || closeDate?.monthKey || "";
       if ((dashboardData.months || []).includes(monthKey)) {
         addFact(factsMap, {
           saleKey,
