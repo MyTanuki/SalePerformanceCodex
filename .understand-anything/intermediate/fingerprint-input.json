@@ -1,5 +1,0 @@
-{
-  "projectRoot": "/sessions/nice-charming-meitner/mnt/sale-performance-dashboard",
-  "sourceFilePaths": ["app.js","data/dashboard-data.js","index.html","styles.css","scripts/revenue-logic.js","scripts/preview-server.js","scripts/test-revenue-logic.js"],
-  "gitCommitHash": "44859a0166300996c08e31b2593b289f76ad5235"
-}
