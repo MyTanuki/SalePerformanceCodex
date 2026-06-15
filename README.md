@@ -11,6 +11,7 @@ sale-performance-dashboard/
   styles.css                  Light/dark theme and responsive layout
   docs/
     CHART_STANDARDS.md        Reusable visual standards for dashboard charts
+    second-brain/             Cross-agent context, business rules, and handoff notes
   data/
     dashboard-data.js         Empty skeleton data loaded by the page
     Sale Target.csv           Optional default target file auto-loaded at startup
@@ -21,6 +22,10 @@ sale-performance-dashboard/
     revenue-logic.js          Pure revenue recognition and recurring target logic
     test-revenue-logic.js     Node tests for revenue logic
 ```
+
+## AI Agent Context
+
+Start with `AGENT_CONTEXT.md` for a compact handoff. Use `docs/second-brain/` for deeper business context, filter rules, revenue recognition, export rules, and design decisions.
 
 ## Run Offline Preview
 
