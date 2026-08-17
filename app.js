@@ -635,7 +635,9 @@ function parseMappingCsv(text) {
       if (row[0] && row[1]) dealTypeMap.set(normalizeName(row[0]), row[1]);
     } else if (section === "sales") {
       if (row[0] && row[1]) {
-        const displayName = cleanText(row[0]).replace(/\s+/g, " ");
+        // Optional 3rd column: canonical display name (e.g. the Sale Target
+        // spelling) so alternate spellings merge into the same sale entry.
+        const displayName = cleanText(row[2] || row[0]).replace(/\s+/g, " ");
         salesGroupMap.set(normalizeName(row[0]), { displayName, group: row[1] });
       }
     } else if (section === "pipelinePrimary") {
